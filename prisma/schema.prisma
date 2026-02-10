@@ -1,0 +1,359 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum UserRole {
+  superadmin
+  admin
+  patient
+  educator
+}
+
+enum OrganizationName {
+  Mec
+  Intecmed
+}
+
+enum ClaimStatus {
+  pending
+  approved
+  rejected
+}
+
+
+enum HardwareType {
+  Bomba_200u
+  Bomba_300u
+  PDM
+  Transmisor
+  Cable_transmisor
+}
+
+enum HardwareStatus {
+  active
+  maintenance
+  retired
+  inactive
+}
+
+
+enum HardwareActivityType {
+  assignment
+  return_hw
+  transfer
+}
+
+enum DeliveryType {
+  supply_delivery
+  claim_reimbursement
+}
+
+enum SupplyType {
+  SENSOR
+  PARCHE_200U
+  PARCHE_300U
+  TRANSMISOR
+  BASE_BOMBA_200U
+  BASE_BOMBA_300U
+  CABLE_TRANSMISOR
+  PDM
+}
+
+enum ClaimCategory {
+  SENSOR
+  PARCHE_200U
+  PARCHE_300U
+  TRANSMISOR
+  BASE_BOMBA_200U
+  BASE_BOMBA_300U
+  CABLE_TRANSMISOR
+  PDM
+}
+
+enum ClaimErrorCode {
+  // Sensor
+  SENSOR_FALLA
+  SENSOR_FALTA_ADHESIVO
+  SENSOR_DIFERENCIA_CAPILAR
+  SENSOR_PERDIDO
+  SENSOR_DESCONOCIDO
+  SENSOR_SANGRADO_COLOCACION
+  SENSOR_OTROS
+
+  // Parche
+  PARCHE_FALTA_ADHESIVO
+  PARCHE_ERROR
+  PARCHE_OBSTRUCCION
+  PARCHE_BATERIA_AGOTADA
+  PARCHE_ERROR_CEBADO
+  PARCHE_DESACTIVADO
+  PARCHE_OTROS
+
+  // Transmisor
+  TRANSMISOR_CONECTORES_OXIDADOS
+  TRANSMISOR_LUZ_VERDE_NO_PARPADEA
+  TRANSMISOR_PROBLEMAS_BATERIA
+  TRANSMISOR_ROTURA
+  TRANSMISOR_OTROS
+
+  // Base Bomba
+  BASE_BOMBA_CONECTORES_OXIDADOS
+  BASE_BOMBA_NO_ENCASTRA
+  BASE_BOMBA_NO_HACE_PITIDOS
+  BASE_BOMBA_ROTURA
+  BASE_BOMBA_OTROS
+
+  // Cable Transmisor
+  CABLE_NO_CARGA
+  CABLE_PIN_DOBLADO
+  CABLE_OTROS
+
+  // PDM
+  PDM_NO_CARGA_NO_ENCIENDE
+  PDM_SE_APAGA_SOLO
+  PDM_NO_CARGA
+  PDM_ROTURA
+  PDM_OTROS
+}
+
+// ==================== MAIN MODELS ====================
+
+model Organization {
+  id        String           @id @default(uuid())
+  name      OrganizationName
+  code      String           @unique
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  users       User[]
+  doctors     Doctor[]
+  educators   Educator[]
+  healthcares Healthcare[]
+
+  hardware    HardwareSupply[]
+  deliveries  Delivery[]
+
+  @@map("organizations")
+}
+
+model Healthcare {
+  id             String   @id @default(uuid())
+  name           String
+  code           String   @unique
+  organizationId String?  @map("organization_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  users        User[]
+  doctors      DoctorHealthcare[]
+
+  @@map("healthcares")
+}
+
+model Doctor {
+  id             String   @id @default(uuid())
+  name           String
+  province       String
+  telephone      String?
+  organizationId String?  @map("organization_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  healthcares  DoctorHealthcare[]
+  patients     User[]
+
+  @@map("doctors")
+}
+
+model Educator {
+  id             String   @id @default(uuid())
+  name           String
+  province       String
+  telephone      String?
+  organizationId String?  @map("organization_id")
+  userId         String?  @unique @map("user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  user         User?         @relation("EducatorUser", fields: [userId], references: [id])
+  patients     User[]        @relation("PatientEducator")
+
+  @@map("educators")
+}
+
+model DoctorHealthcare {
+  id           String   @id @default(uuid())
+  doctorId     String   @map("doctor_id")
+  healthcareId String   @map("healthcare_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  doctor     Doctor     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  healthcare Healthcare @relation(fields: [healthcareId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, healthcareId])
+  @@map("doctor_healthcares")
+}
+
+model User {
+  id                String    @id @default(uuid())
+  supabaseId        String?   @unique @map("supabase_id")
+  email             String    @unique
+  passwordHash      String?   @map("password_hash")
+  role              UserRole  @default(admin)
+  organizationId    String?   @map("organization_id")
+  healthcareId      String?   @map("healthcare_id")
+  fullName          String?   @map("full_name")
+  phoneNumber       String?   @map("phone_number")
+  dni               String?
+  address           String?
+  birthDate         DateTime? @map("birth_date")
+  province          String?
+  doctorId          String?   @map("doctor_id")
+  educatorId        String?   @map("educator_id")
+  balanceDaysSensor Int       @default(0) @map("balance_days_sensor")
+  balanceDaysParche Int       @default(0) @map("balance_days_parche")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  healthcare   Healthcare?   @relation(fields: [healthcareId], references: [id])
+  doctor       Doctor?       @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  educator     Educator?     @relation("PatientEducator", fields: [educatorId], references: [id], onDelete: SetNull)
+  educatorProfile Educator?  @relation("EducatorUser")
+
+  claims                      Claim[]              @relation("UserClaims")
+  claimsResolved              Claim[]              @relation("ClaimResolvedBy")
+  deliveries                  Delivery[]                   @relation("UserDeliveries")
+  deliveriesAssigned          Delivery[]                   @relation("DeliveryAssignedBy")
+
+  hardwareSupplies            HardwareSupply[]
+
+  hardwareActivityLogs        HardwareActivityLog[]        @relation("HardwareLogUser")
+  hardwarePreviousAssignments HardwareActivityLog[]        @relation("HardwarePreviousUser")
+  hardwareNewAssignments      HardwareActivityLog[]        @relation("HardwareNewUser")
+  medicalEntries              MedicalEntry[]               @relation("PatientMedicalEntries")
+  medicalEntriesCreated       MedicalEntry[]               @relation("MedicalEntryCreatedBy")
+
+  @@map("users")
+}
+
+model Claim {
+  id                      String      @id @default(uuid())
+  userId                  String      @map("user_id")
+  supply                  SupplyType?
+  daysClaimed             Int?        @map("days_claimed")
+  status                  ClaimStatus @default(pending)
+  description             String?
+  needChange              Boolean     @default(false) @map("need_change")
+  lotNumber               String?     @map("lot_number")
+  needsReplacement        Boolean     @default(false) @map("needs_replacement")
+  claimCategory           ClaimCategory?  @map("claim_category")
+  errorCode               ClaimErrorCode? @map("error_code")
+  photoUrl                String?     @map("photo_url")
+  failureDate             DateTime?   @map("failure_date")
+  colocationDate          DateTime?   @map("colocation_date")
+  resolutionMessage       String?     @map("resolution_message")
+  balanceAfterResolution  Int?        @map("balance_after_resolution")
+  resolvedById            String?     @map("resolved_by_id")
+  resolvedAt              DateTime?   @map("resolved_at")
+  createdAt               DateTime    @default(now()) @map("created_at")
+  updatedAt               DateTime    @updatedAt @map("updated_at")
+
+  user         User              @relation("UserClaims", fields: [userId], references: [id], onDelete: Cascade)
+  resolvedBy   User?             @relation("ClaimResolvedBy", fields: [resolvedById], references: [id])
+  deliveries   Delivery[]
+
+  @@map("claims")
+}
+
+
+model HardwareSupply {
+  id             String         @id @default(uuid())
+  type           HardwareType
+  serialNumber   String         @map("serial_number")
+  status         HardwareStatus @default(active)
+  userId         String?        @map("user_id")
+  organizationId String?        @map("organization_id")
+  assignedDate   DateTime?      @map("assigned_date")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization Organization?         @relation(fields: [organizationId], references: [id])
+  user         User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  activityLogs HardwareActivityLog[]
+
+  @@unique([serialNumber, type])
+  @@map("hardware_supplies")
+}
+
+// ==================== EMBEDDED ARRAYS -> SEPARATE TABLES ====================
+
+model Delivery {
+  id              String       @id @default(uuid())
+  type            DeliveryType
+  userId          String       @map("user_id")
+  organizationId  String?      @map("organization_id")
+
+  claimId         String?      @map("claim_id")
+  quantity        Int          @default(0)
+  daysReimbursed  Int?         @map("days_reimbursed")
+  itemName        String?      @map("item_name")
+  date            DateTime     @default(now())
+  assignedById    String?      @map("assigned_by")
+  observations    String?
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  user         User              @relation("UserDeliveries", fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization?     @relation(fields: [organizationId], references: [id])
+
+  claim        Claim?            @relation(fields: [claimId], references: [id], onDelete: SetNull)
+  assignedBy   User?             @relation("DeliveryAssignedBy", fields: [assignedById], references: [id])
+
+  @@map("deliveries")
+}
+
+
+model HardwareActivityLog {
+  id             String               @id @default(uuid())
+  hardwareId     String               @map("hardware_id")
+  type           HardwareActivityType
+  userId         String               @map("user_id")
+  date           DateTime             @default(now())
+  previousUserId String?              @map("previous_user_id")
+  newUserId      String?              @map("new_user_id")
+  observations   String?
+  createdAt      DateTime             @default(now()) @map("created_at")
+
+  hardware     HardwareSupply @relation(fields: [hardwareId], references: [id], onDelete: Cascade)
+  user         User           @relation("HardwareLogUser", fields: [userId], references: [id])
+  previousUser User?          @relation("HardwarePreviousUser", fields: [previousUserId], references: [id])
+  newUser      User?          @relation("HardwareNewUser", fields: [newUserId], references: [id])
+
+  @@map("hardware_activity_logs")
+}
+
+model MedicalEntry {
+  id          String   @id @default(uuid())
+  patientId   String   @map("patient_id")
+  createdById String   @map("created_by_id")
+  visitDate   DateTime @map("visit_date")
+  notes       String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  patient   User @relation("PatientMedicalEntries", fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy User @relation("MedicalEntryCreatedBy", fields: [createdById], references: [id])
+
+  @@map("medical_entries")
+}

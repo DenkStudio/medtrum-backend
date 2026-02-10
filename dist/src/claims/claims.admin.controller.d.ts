@@ -1,0 +1,230 @@
+import { ClaimsAdminService } from "./claims.admin.service";
+import { QueryOptionsDto } from "src/common/query/query-options.dto";
+import { ClaimStatus } from "@prisma/client";
+import { AuthUser } from "../common/helpers/organization-filter.helper";
+import { ClaimsChartQueryDto } from "./dto/claims-chart-query.dto";
+export declare class ClaimsAdminController {
+    private readonly service;
+    constructor(service: ClaimsAdminService);
+    findAll(query: QueryOptionsDto, user: AuthUser): Promise<import("../utils/paginate-query").PaginatedResult<any>>;
+    getChartData(query: ClaimsChartQueryDto, user: AuthUser): Promise<{
+        labels: string[];
+        datasets: {
+            label: string;
+            data: number[];
+            backgroundColor: string;
+            hoverBackgroundColor: string;
+            barPercentage: number;
+            categoryPercentage: number;
+            borderRadius: number;
+        }[];
+    }>;
+    getClaimsByUserChart(query: ClaimsChartQueryDto, user: AuthUser): Promise<{
+        labels: string[];
+        datasets: {
+            label: string;
+            data: number[];
+            backgroundColor: string[];
+            hoverBackgroundColor: string[];
+            borderWidth: number;
+        }[];
+    }>;
+    findOne(claimId: string, user: AuthUser): Promise<({
+        deliveries: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            organizationId: string | null;
+            userId: string;
+            type: import(".prisma/client").$Enums.DeliveryType;
+            claimId: string | null;
+            quantity: number;
+            daysReimbursed: number | null;
+            itemName: string | null;
+            date: Date;
+            assignedById: string | null;
+            observations: string | null;
+        }[];
+        user: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            organizationId: string | null;
+            province: string | null;
+            doctorId: string | null;
+            healthcareId: string | null;
+            supabaseId: string | null;
+            email: string;
+            passwordHash: string | null;
+            role: import(".prisma/client").$Enums.UserRole;
+            fullName: string | null;
+            phoneNumber: string | null;
+            dni: string | null;
+            address: string | null;
+            birthDate: Date | null;
+            educatorId: string | null;
+            balanceDaysSensor: number;
+            balanceDaysParche: number;
+        };
+        resolvedBy: {
+            id: string;
+            email: string;
+            fullName: string | null;
+        } | null;
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        userId: string;
+        supply: import(".prisma/client").$Enums.SupplyType | null;
+        daysClaimed: number | null;
+        status: import(".prisma/client").$Enums.ClaimStatus;
+        description: string | null;
+        needChange: boolean;
+        lotNumber: string | null;
+        needsReplacement: boolean;
+        claimCategory: import(".prisma/client").$Enums.ClaimCategory | null;
+        errorCode: import(".prisma/client").$Enums.ClaimErrorCode | null;
+        photoUrl: string | null;
+        failureDate: Date | null;
+        colocationDate: Date | null;
+        resolutionMessage: string | null;
+        balanceAfterResolution: number | null;
+        resolvedById: string | null;
+        resolvedAt: Date | null;
+    }) | null>;
+    findByUserId(userId: string, user: AuthUser): Promise<({
+        deliveries: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            organizationId: string | null;
+            userId: string;
+            type: import(".prisma/client").$Enums.DeliveryType;
+            claimId: string | null;
+            quantity: number;
+            daysReimbursed: number | null;
+            itemName: string | null;
+            date: Date;
+            assignedById: string | null;
+            observations: string | null;
+        }[];
+        user: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            organizationId: string | null;
+            province: string | null;
+            doctorId: string | null;
+            healthcareId: string | null;
+            supabaseId: string | null;
+            email: string;
+            passwordHash: string | null;
+            role: import(".prisma/client").$Enums.UserRole;
+            fullName: string | null;
+            phoneNumber: string | null;
+            dni: string | null;
+            address: string | null;
+            birthDate: Date | null;
+            educatorId: string | null;
+            balanceDaysSensor: number;
+            balanceDaysParche: number;
+        };
+        resolvedBy: {
+            id: string;
+            email: string;
+            fullName: string | null;
+        } | null;
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        userId: string;
+        supply: import(".prisma/client").$Enums.SupplyType | null;
+        daysClaimed: number | null;
+        status: import(".prisma/client").$Enums.ClaimStatus;
+        description: string | null;
+        needChange: boolean;
+        lotNumber: string | null;
+        needsReplacement: boolean;
+        claimCategory: import(".prisma/client").$Enums.ClaimCategory | null;
+        errorCode: import(".prisma/client").$Enums.ClaimErrorCode | null;
+        photoUrl: string | null;
+        failureDate: Date | null;
+        colocationDate: Date | null;
+        resolutionMessage: string | null;
+        balanceAfterResolution: number | null;
+        resolvedById: string | null;
+        resolvedAt: Date | null;
+    })[]>;
+    setStatus(id: string, body: {
+        status: ClaimStatus;
+        qty: number;
+        daysReimbursed?: number;
+        resolutionMessage?: string;
+    }, user: AuthUser): Promise<({
+        deliveries: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            organizationId: string | null;
+            userId: string;
+            type: import(".prisma/client").$Enums.DeliveryType;
+            claimId: string | null;
+            quantity: number;
+            daysReimbursed: number | null;
+            itemName: string | null;
+            date: Date;
+            assignedById: string | null;
+            observations: string | null;
+        }[];
+        user: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            organizationId: string | null;
+            province: string | null;
+            doctorId: string | null;
+            healthcareId: string | null;
+            supabaseId: string | null;
+            email: string;
+            passwordHash: string | null;
+            role: import(".prisma/client").$Enums.UserRole;
+            fullName: string | null;
+            phoneNumber: string | null;
+            dni: string | null;
+            address: string | null;
+            birthDate: Date | null;
+            educatorId: string | null;
+            balanceDaysSensor: number;
+            balanceDaysParche: number;
+        };
+        resolvedBy: {
+            id: string;
+            email: string;
+            fullName: string | null;
+        } | null;
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        userId: string;
+        supply: import(".prisma/client").$Enums.SupplyType | null;
+        daysClaimed: number | null;
+        status: import(".prisma/client").$Enums.ClaimStatus;
+        description: string | null;
+        needChange: boolean;
+        lotNumber: string | null;
+        needsReplacement: boolean;
+        claimCategory: import(".prisma/client").$Enums.ClaimCategory | null;
+        errorCode: import(".prisma/client").$Enums.ClaimErrorCode | null;
+        photoUrl: string | null;
+        failureDate: Date | null;
+        colocationDate: Date | null;
+        resolutionMessage: string | null;
+        balanceAfterResolution: number | null;
+        resolvedById: string | null;
+        resolvedAt: Date | null;
+    }) | null>;
+}
+//# sourceMappingURL=claims.admin.controller.d.ts.map
