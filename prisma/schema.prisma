@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -28,14 +29,6 @@ enum ClaimStatus {
 }
 
 
-enum HardwareType {
-  Bomba_200u
-  Bomba_300u
-  PDM
-  Transmisor
-  Cable_transmisor
-}
-
 enum HardwareStatus {
   active
   maintenance
@@ -56,17 +49,6 @@ enum DeliveryType {
 }
 
 enum SupplyType {
-  SENSOR
-  PARCHE_200U
-  PARCHE_300U
-  TRANSMISOR
-  BASE_BOMBA_200U
-  BASE_BOMBA_300U
-  CABLE_TRANSMISOR
-  PDM
-}
-
-enum ClaimCategory {
   SENSOR
   PARCHE_200U
   PARCHE_300U
@@ -257,7 +239,7 @@ model Claim {
   needChange              Boolean     @default(false) @map("need_change")
   lotNumber               String?     @map("lot_number")
   needsReplacement        Boolean     @default(false) @map("needs_replacement")
-  claimCategory           ClaimCategory?  @map("claim_category")
+  claimCategory           SupplyType?  @map("claim_category")
   errorCode               ClaimErrorCode? @map("error_code")
   photoUrl                String?     @map("photo_url")
   failureDate             DateTime?   @map("failure_date")
@@ -279,7 +261,7 @@ model Claim {
 
 model HardwareSupply {
   id             String         @id @default(uuid())
-  type           HardwareType
+  type           SupplyType
   serialNumber   String         @map("serial_number")
   status         HardwareStatus @default(active)
   userId         String?        @map("user_id")
@@ -307,7 +289,7 @@ model Delivery {
   claimId         String?      @map("claim_id")
   quantity        Int          @default(0)
   daysReimbursed  Int?         @map("days_reimbursed")
-  itemName        String?      @map("item_name")
+  itemName        SupplyType?  @map("item_name")
   date            DateTime     @default(now())
   assignedById    String?      @map("assigned_by")
   observations    String?
