@@ -1,1 +1,0 @@
-{"version":3,"file":"create-doctor.dto.d.ts","sourceRoot":"","sources":["../../../../src/doctors/dto/create-doctor.dto.ts"],"names":[],"mappings":"AAQA,qBAAa,eAAe;IAG1B,IAAI,EAAG,MAAM,CAAC;IAId,QAAQ,EAAG,MAAM,CAAC;IAKlB,WAAW,CAAC,EAAE,MAAM,EAAE,CAAC;IAIvB,SAAS,CAAC,EAAE,MAAM,CAAC;IAInB,cAAc,CAAC,EAAE,MAAM,CAAC;CACzB"}
