@@ -1,5 +1,5 @@
 import { IsOptional, IsString, IsBoolean, IsEnum, IsDateString } from "class-validator";
-import { ClaimCategory, ClaimErrorCode, SupplyType } from "@prisma/client";
+import { ClaimErrorCode, SupplyType } from "@prisma/client";
 
 export class CreateClaimDto {
   @IsOptional() @IsEnum(SupplyType) supply?: SupplyType;
@@ -7,7 +7,7 @@ export class CreateClaimDto {
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() lotNumber?: string;
   @IsOptional() @IsBoolean() needsReplacement?: boolean;
-  @IsOptional() @IsEnum(ClaimCategory) claimCategory?: ClaimCategory;
+  @IsOptional() @IsEnum(SupplyType) claimCategory?: SupplyType;
   @IsOptional() @IsEnum(ClaimErrorCode) errorCode?: ClaimErrorCode;
   @IsOptional() @IsString() photoUrl?: string;
   @IsOptional() @IsDateString() failureDate?: string;

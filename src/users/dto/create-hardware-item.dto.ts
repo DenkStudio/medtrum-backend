@@ -1,7 +1,7 @@
 import { IsEnum, IsNotEmpty, IsString } from "class-validator";
-import { HardwareType } from "@prisma/client";
+import { SupplyType } from "@prisma/client";
 
 export class CreateHardwareItemDto {
-  @IsEnum(HardwareType) type!: HardwareType;
+  @IsEnum(SupplyType) type!: SupplyType;
   @IsString() @IsNotEmpty() serialNumber!: string;
 }

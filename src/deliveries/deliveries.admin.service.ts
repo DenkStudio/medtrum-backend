@@ -54,16 +54,15 @@ export class DeliveriesAdminService {
     });
 
     if (dto.daysReimbursed && dto.itemName) {
-      const supply = dto.itemName as SupplyType;
       if (
-        supply === SupplyType.SENSOR ||
-        supply === SupplyType.PARCHE_200U ||
-        supply === SupplyType.PARCHE_300U
+        dto.itemName === SupplyType.SENSOR ||
+        dto.itemName === SupplyType.PARCHE_200U ||
+        dto.itemName === SupplyType.PARCHE_300U
       ) {
         await this.users.updateBalanceDays(
           dto.userId,
           dto.daysReimbursed,
-          supply
+          dto.itemName
         );
       }
     }

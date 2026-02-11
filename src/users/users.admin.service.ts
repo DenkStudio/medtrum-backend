@@ -11,7 +11,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
-import { UserRole, HardwareType, Prisma } from "@prisma/client";
+import { UserRole, SupplyType, Prisma } from "@prisma/client";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import {
   PaginatedResult,
@@ -151,12 +151,12 @@ export class UsersAdminService {
               }),
           ];
 
-          if (hardware.type === HardwareType.Transmisor) {
+          if (hardware.type === SupplyType.TRANSMISOR) {
             promises.push(
               this.hardwareService
                 .create(
                   {
-                    type: HardwareType.Cable_transmisor,
+                    type: SupplyType.CABLE_TRANSMISOR,
                     serialNumber: hardware.serialNumber,
                     userId: created.id,
                   },

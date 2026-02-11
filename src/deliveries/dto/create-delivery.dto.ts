@@ -3,9 +3,11 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsEnum,
   Min,
   IsDateString,
 } from "class-validator";
+import { SupplyType } from "@prisma/client";
 
 export class CreateDeliveryDto {
   @IsUUID()
@@ -30,8 +32,8 @@ export class CreateDeliveryDto {
   daysReimbursed?: number;
 
   @IsOptional()
-  @IsString()
-  itemName?: string;
+  @IsEnum(SupplyType)
+  itemName?: SupplyType;
 
   @IsOptional()
   @IsDateString()

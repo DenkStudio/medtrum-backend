@@ -429,11 +429,11 @@ export class HardwareAdminService {
     });
 
     const labelMap: Record<string, string> = {
-      Bomba_200u: "Bomba 200u",
-      Bomba_300u: "Bomba 300u",
+      BASE_BOMBA_200U: "Base Bomba 200U",
+      BASE_BOMBA_300U: "Base Bomba 300U",
       PDM: "PDM",
-      Transmisor: "Transmisor",
-      Cable_transmisor: "Cable transmisor",
+      TRANSMISOR: "Transmisor",
+      CABLE_TRANSMISOR: "Cable Transmisor",
     };
 
     const palette = ["#3B82F6", "#8B5CF6", "#F59E0B", "#22C55E", "#F43F5E"];

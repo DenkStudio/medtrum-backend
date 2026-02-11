@@ -437,35 +437,35 @@ async function seedHardwareSupplies(
   orgs: Awaited<ReturnType<typeof seedOrganizations>>,
 ) {
   const items = [
-    // Patient 1 Mec: Bomba_200u + Transmisor + Cable_transmisor
-    { type: 'Bomba_200u' as const, serialNumber: 'BOM200-001', status: 'active' as const, userId: users.patient1Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(82) },
-    { type: 'Transmisor' as const, serialNumber: 'TRANS-001', status: 'active' as const, userId: users.patient1Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(82) },
-    { type: 'Cable_transmisor' as const, serialNumber: 'CABLE-001', status: 'active' as const, userId: users.patient1Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(82) },
+    // Patient 1 Mec: BASE_BOMBA_200U + Transmisor + Cable_transmisor
+    { type: 'BASE_BOMBA_200U' as const, serialNumber: 'BOM200-001', status: 'active' as const, userId: users.patient1Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(82) },
+    { type: 'TRANSMISOR' as const, serialNumber: 'TRANS-001', status: 'active' as const, userId: users.patient1Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(82) },
+    { type: 'CABLE_TRANSMISOR' as const, serialNumber: 'CABLE-001', status: 'active' as const, userId: users.patient1Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(82) },
 
-    // Patient 2 Mec: Bomba_200u + Transmisor + Cable_transmisor
-    { type: 'Bomba_200u' as const, serialNumber: 'BOM200-002', status: 'active' as const, userId: users.patient2Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(75) },
-    { type: 'Transmisor' as const, serialNumber: 'TRANS-002', status: 'active' as const, userId: users.patient2Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(75) },
-    { type: 'Cable_transmisor' as const, serialNumber: 'CABLE-002', status: 'active' as const, userId: users.patient2Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(75) },
+    // Patient 2 Mec: BASE_BOMBA_200U + Transmisor + Cable_transmisor
+    { type: 'BASE_BOMBA_200U' as const, serialNumber: 'BOM200-002', status: 'active' as const, userId: users.patient2Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(75) },
+    { type: 'TRANSMISOR' as const, serialNumber: 'TRANS-002', status: 'active' as const, userId: users.patient2Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(75) },
+    { type: 'CABLE_TRANSMISOR' as const, serialNumber: 'CABLE-002', status: 'active' as const, userId: users.patient2Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(75) },
 
-    // Patient 3 Mec: Bomba_300u + Transmisor + Cable_transmisor
-    { type: 'Bomba_300u' as const, serialNumber: 'BOM300-001', status: 'active' as const, userId: users.patient3Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(68) },
-    { type: 'Transmisor' as const, serialNumber: 'TRANS-003', status: 'active' as const, userId: users.patient3Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(68) },
-    { type: 'Cable_transmisor' as const, serialNumber: 'CABLE-003', status: 'active' as const, userId: users.patient3Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(68) },
+    // Patient 3 Mec: BASE_BOMBA_300U + Transmisor + Cable_transmisor
+    { type: 'BASE_BOMBA_300U' as const, serialNumber: 'BOM300-001', status: 'active' as const, userId: users.patient3Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(68) },
+    { type: 'TRANSMISOR' as const, serialNumber: 'TRANS-003', status: 'active' as const, userId: users.patient3Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(68) },
+    { type: 'CABLE_TRANSMISOR' as const, serialNumber: 'CABLE-003', status: 'active' as const, userId: users.patient3Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(68) },
 
-    // Patient 4 Intecmed: Bomba_300u + Transmisor + Cable_transmisor
-    { type: 'Bomba_300u' as const, serialNumber: 'BOM300-002', status: 'active' as const, userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(60) },
-    { type: 'Transmisor' as const, serialNumber: 'TRANS-004', status: 'active' as const, userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(60) },
-    { type: 'Cable_transmisor' as const, serialNumber: 'CABLE-004', status: 'active' as const, userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(60) },
+    // Patient 4 Intecmed: BASE_BOMBA_300U + Transmisor + Cable_transmisor
+    { type: 'BASE_BOMBA_300U' as const, serialNumber: 'BOM300-002', status: 'active' as const, userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(60) },
+    { type: 'TRANSMISOR' as const, serialNumber: 'TRANS-004', status: 'active' as const, userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(60) },
+    { type: 'CABLE_TRANSMISOR' as const, serialNumber: 'CABLE-004', status: 'active' as const, userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(60) },
 
-    // Patient 5 Intecmed: Bomba_200u + Transmisor + Cable_transmisor
-    { type: 'Bomba_200u' as const, serialNumber: 'BOM200-003', status: 'active' as const, userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(55) },
-    { type: 'Transmisor' as const, serialNumber: 'TRANS-005', status: 'active' as const, userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(55) },
-    { type: 'Cable_transmisor' as const, serialNumber: 'CABLE-005', status: 'active' as const, userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(55) },
+    // Patient 5 Intecmed: BASE_BOMBA_200U + Transmisor + Cable_transmisor
+    { type: 'BASE_BOMBA_200U' as const, serialNumber: 'BOM200-003', status: 'active' as const, userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(55) },
+    { type: 'TRANSMISOR' as const, serialNumber: 'TRANS-005', status: 'active' as const, userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(55) },
+    { type: 'CABLE_TRANSMISOR' as const, serialNumber: 'CABLE-005', status: 'active' as const, userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(55) },
 
-    // Patient 6 Intecmed: Bomba_300u + Transmisor + Cable_transmisor
-    { type: 'Bomba_300u' as const, serialNumber: 'BOM300-003', status: 'active' as const, userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(48) },
-    { type: 'Transmisor' as const, serialNumber: 'TRANS-006', status: 'active' as const, userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(48) },
-    { type: 'Cable_transmisor' as const, serialNumber: 'CABLE-006', status: 'active' as const, userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(48) },
+    // Patient 6 Intecmed: BASE_BOMBA_300U + Transmisor + Cable_transmisor
+    { type: 'BASE_BOMBA_300U' as const, serialNumber: 'BOM300-003', status: 'active' as const, userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(48) },
+    { type: 'TRANSMISOR' as const, serialNumber: 'TRANS-006', status: 'active' as const, userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(48) },
+    { type: 'CABLE_TRANSMISOR' as const, serialNumber: 'CABLE-006', status: 'active' as const, userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, assignedDate: daysAgo(48) },
 
     // Extra PDMs
     { type: 'PDM' as const, serialNumber: 'PDM-001', status: 'active' as const, userId: users.patient1Mec.id, organizationId: orgs.mec.id, assignedDate: daysAgo(82) },
@@ -491,14 +491,14 @@ async function seedDeliveries(
   const mecPatientIds = [users.patient1Mec.id, users.patient2Mec.id, users.patient3Mec.id];
   const getOrgId = (userId: string) => mecPatientIds.includes(userId) ? orgs.mec.id : orgs.intecmed.id;
 
-  // Category to item name mapping
-  const categoryToItemName: Record<string, string> = {
+  // Display labels for observations
+  const supplyDisplayName: Record<string, string> = {
     SENSOR: 'Sensor',
-    PARCHE_200U: 'Parche 200u',
-    PARCHE_300U: 'Parche 300u',
+    PARCHE_200U: 'Parche 200U',
+    PARCHE_300U: 'Parche 300U',
     TRANSMISOR: 'Transmisor',
-    BASE_BOMBA_200U: 'Base Bomba 200u',
-    BASE_BOMBA_300U: 'Base Bomba 300u',
+    BASE_BOMBA_200U: 'Base Bomba 200U',
+    BASE_BOMBA_300U: 'Base Bomba 300U',
     CABLE_TRANSMISOR: 'Cable Transmisor',
     PDM: 'PDM',
   };
@@ -507,26 +507,26 @@ async function seedDeliveries(
     // ===== SUPPLY DELIVERIES (routine deliveries) =====
     // Spread across ~3 months for realism
     // Sensor = 10 días por unidad, Parche = 3 días por unidad
-    { type: 'supply_delivery', userId: users.patient1Mec.id, organizationId: orgs.mec.id, quantity: 3, daysReimbursed: 30, itemName: 'Sensor', date: daysAgo(78), assignedById: users.adminMec.id, observations: 'Entrega inicial de sensores', createdAt: daysAgo(78) },
-    { type: 'supply_delivery', userId: users.patient1Mec.id, organizationId: orgs.mec.id, quantity: 5, daysReimbursed: 15, itemName: 'Parche 200u', date: daysAgo(76), assignedById: users.adminMec.id, observations: 'Entrega inicial de parches', createdAt: daysAgo(76) },
-    { type: 'supply_delivery', userId: users.patient2Mec.id, organizationId: orgs.mec.id, quantity: 3, daysReimbursed: 30, itemName: 'Sensor', date: daysAgo(72), assignedById: users.adminMec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(72) },
-    { type: 'supply_delivery', userId: users.patient2Mec.id, organizationId: orgs.mec.id, quantity: 4, daysReimbursed: 12, itemName: 'Parche 200u', date: daysAgo(70), assignedById: users.admin2Mec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(70) },
-    { type: 'supply_delivery', userId: users.patient3Mec.id, organizationId: orgs.mec.id, quantity: 1, daysReimbursed: 10, itemName: 'Sensor', date: daysAgo(65), assignedById: users.adminMec.id, observations: 'Entrega puntual', createdAt: daysAgo(65) },
-    { type: 'supply_delivery', userId: users.patient3Mec.id, organizationId: orgs.mec.id, quantity: 3, daysReimbursed: 9, itemName: 'Parche 300u', date: daysAgo(63), assignedById: users.admin2Mec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(63) },
-    { type: 'supply_delivery', userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, quantity: 3, daysReimbursed: 30, itemName: 'Sensor', date: daysAgo(58), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(58) },
-    { type: 'supply_delivery', userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, quantity: 5, daysReimbursed: 15, itemName: 'Parche 300u', date: daysAgo(56), assignedById: users.adminIntecmed.id, observations: 'Entrega inicial de parches', createdAt: daysAgo(56) },
-    { type: 'supply_delivery', userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, quantity: 1, daysReimbursed: 10, itemName: 'Sensor', date: daysAgo(52), assignedById: users.adminIntecmed.id, observations: 'Entrega puntual', createdAt: daysAgo(52) },
-    { type: 'supply_delivery', userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, quantity: 3, daysReimbursed: 9, itemName: 'Parche 200u', date: daysAgo(50), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(50) },
-    { type: 'supply_delivery', userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, quantity: 3, daysReimbursed: 30, itemName: 'Sensor', date: daysAgo(45), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(45) },
-    { type: 'supply_delivery', userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, quantity: 4, daysReimbursed: 12, itemName: 'Parche 300u', date: daysAgo(43), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(43) },
+    { type: 'supply_delivery', userId: users.patient1Mec.id, organizationId: orgs.mec.id, quantity: 3, daysReimbursed: 30, itemName: 'SENSOR', date: daysAgo(78), assignedById: users.adminMec.id, observations: 'Entrega inicial de sensores', createdAt: daysAgo(78) },
+    { type: 'supply_delivery', userId: users.patient1Mec.id, organizationId: orgs.mec.id, quantity: 5, daysReimbursed: 15, itemName: 'PARCHE_200U', date: daysAgo(76), assignedById: users.adminMec.id, observations: 'Entrega inicial de parches', createdAt: daysAgo(76) },
+    { type: 'supply_delivery', userId: users.patient2Mec.id, organizationId: orgs.mec.id, quantity: 3, daysReimbursed: 30, itemName: 'SENSOR', date: daysAgo(72), assignedById: users.adminMec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(72) },
+    { type: 'supply_delivery', userId: users.patient2Mec.id, organizationId: orgs.mec.id, quantity: 4, daysReimbursed: 12, itemName: 'PARCHE_200U', date: daysAgo(70), assignedById: users.admin2Mec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(70) },
+    { type: 'supply_delivery', userId: users.patient3Mec.id, organizationId: orgs.mec.id, quantity: 1, daysReimbursed: 10, itemName: 'SENSOR', date: daysAgo(65), assignedById: users.adminMec.id, observations: 'Entrega puntual', createdAt: daysAgo(65) },
+    { type: 'supply_delivery', userId: users.patient3Mec.id, organizationId: orgs.mec.id, quantity: 3, daysReimbursed: 9, itemName: 'PARCHE_300U', date: daysAgo(63), assignedById: users.admin2Mec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(63) },
+    { type: 'supply_delivery', userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, quantity: 3, daysReimbursed: 30, itemName: 'SENSOR', date: daysAgo(58), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(58) },
+    { type: 'supply_delivery', userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, quantity: 5, daysReimbursed: 15, itemName: 'PARCHE_300U', date: daysAgo(56), assignedById: users.adminIntecmed.id, observations: 'Entrega inicial de parches', createdAt: daysAgo(56) },
+    { type: 'supply_delivery', userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, quantity: 1, daysReimbursed: 10, itemName: 'SENSOR', date: daysAgo(52), assignedById: users.adminIntecmed.id, observations: 'Entrega puntual', createdAt: daysAgo(52) },
+    { type: 'supply_delivery', userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, quantity: 3, daysReimbursed: 9, itemName: 'PARCHE_200U', date: daysAgo(50), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(50) },
+    { type: 'supply_delivery', userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, quantity: 3, daysReimbursed: 30, itemName: 'SENSOR', date: daysAgo(45), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(45) },
+    { type: 'supply_delivery', userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, quantity: 4, daysReimbursed: 12, itemName: 'PARCHE_300U', date: daysAgo(43), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(43) },
     // Second round of deliveries (more recent)
-    { type: 'supply_delivery', userId: users.patient1Mec.id, organizationId: orgs.mec.id, quantity: 3, daysReimbursed: 30, itemName: 'Sensor', date: daysAgo(32), assignedById: users.adminMec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(32) },
-    { type: 'supply_delivery', userId: users.patient1Mec.id, organizationId: orgs.mec.id, quantity: 4, daysReimbursed: 12, itemName: 'Parche 200u', date: daysAgo(30), assignedById: users.adminMec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(30) },
-    { type: 'supply_delivery', userId: users.patient2Mec.id, organizationId: orgs.mec.id, quantity: 1, daysReimbursed: 10, itemName: 'Sensor', date: daysAgo(25), assignedById: users.admin2Mec.id, observations: 'Entrega puntual', createdAt: daysAgo(25) },
-    { type: 'supply_delivery', userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, quantity: 3, daysReimbursed: 30, itemName: 'Sensor', date: daysAgo(18), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(18) },
-    { type: 'supply_delivery', userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, quantity: 3, daysReimbursed: 9, itemName: 'Parche 200u', date: daysAgo(12), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(12) },
-    { type: 'supply_delivery', userId: users.patient3Mec.id, organizationId: orgs.mec.id, quantity: 3, daysReimbursed: 30, itemName: 'Sensor', date: daysAgo(8), assignedById: users.adminMec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(8) },
-    { type: 'supply_delivery', userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, quantity: 1, daysReimbursed: 10, itemName: 'Sensor', date: daysAgo(3), assignedById: users.adminIntecmed.id, observations: 'Entrega puntual', createdAt: daysAgo(3) },
+    { type: 'supply_delivery', userId: users.patient1Mec.id, organizationId: orgs.mec.id, quantity: 3, daysReimbursed: 30, itemName: 'SENSOR', date: daysAgo(32), assignedById: users.adminMec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(32) },
+    { type: 'supply_delivery', userId: users.patient1Mec.id, organizationId: orgs.mec.id, quantity: 4, daysReimbursed: 12, itemName: 'PARCHE_200U', date: daysAgo(30), assignedById: users.adminMec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(30) },
+    { type: 'supply_delivery', userId: users.patient2Mec.id, organizationId: orgs.mec.id, quantity: 1, daysReimbursed: 10, itemName: 'SENSOR', date: daysAgo(25), assignedById: users.admin2Mec.id, observations: 'Entrega puntual', createdAt: daysAgo(25) },
+    { type: 'supply_delivery', userId: users.patient4Intecmed.id, organizationId: orgs.intecmed.id, quantity: 3, daysReimbursed: 30, itemName: 'SENSOR', date: daysAgo(18), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(18) },
+    { type: 'supply_delivery', userId: users.patient5Intecmed.id, organizationId: orgs.intecmed.id, quantity: 3, daysReimbursed: 9, itemName: 'PARCHE_200U', date: daysAgo(12), assignedById: users.adminIntecmed.id, observations: 'Entrega mensual regular', createdAt: daysAgo(12) },
+    { type: 'supply_delivery', userId: users.patient3Mec.id, organizationId: orgs.mec.id, quantity: 3, daysReimbursed: 30, itemName: 'SENSOR', date: daysAgo(8), assignedById: users.adminMec.id, observations: 'Entrega mensual regular', createdAt: daysAgo(8) },
+    { type: 'supply_delivery', userId: users.patient6Intecmed.id, organizationId: orgs.intecmed.id, quantity: 1, daysReimbursed: 10, itemName: 'SENSOR', date: daysAgo(3), assignedById: users.adminIntecmed.id, observations: 'Entrega puntual', createdAt: daysAgo(3) },
   ];
 
   // ===== CLAIM REIMBURSEMENT DELIVERIES (for all approved claims) =====
@@ -542,11 +542,11 @@ async function seedDeliveries(
       organizationId: getOrgId(claim.userId),
       quantity: 1,
       daysReimbursed: isSensorOrParche ? claim.daysClaimed : null,
-      itemName: categoryToItemName[category] || category,
+      itemName: category,
       claimId: claim.id,
       date: new Date((claim.resolvedAt as Date).getTime() + 86400000), // 1 day after resolution
       assignedById: claim.resolvedById,
-      observations: `Reposición por reclamo aprobado - ${categoryToItemName[category] || category}`,
+      observations: `Reposición por reclamo aprobado - ${supplyDisplayName[category] || category}`,
       createdAt: new Date((claim.resolvedAt as Date).getTime() + 86400000),
     });
   }
