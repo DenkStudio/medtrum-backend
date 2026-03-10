@@ -14,21 +14,26 @@ import {
 } from "src/utils/paginate-query";
 import { Prisma } from "@prisma/client";
 import { parseDate } from "../common/helpers/date.helper";
+import { AuthUser } from "../common/helpers/organization-filter.helper";
 
 @Injectable()
 export class EducatorsService {
   constructor(private prisma: PrismaService) {}
 
+  private buildPatientFilter(user: AuthUser): Prisma.UserWhereInput {
+    if (user.role === "super_educator") {
+      return { role: "patient" };
+    }
+    return { role: "patient", organizationId: user.orgId };
+  }
+
   async findMyPatients(
-    educatorId: string,
+    user: AuthUser,
     query: QueryOptionsDto
   ): Promise<PaginatedResult<any>> {
     const { page, limit, search, sort, from, to } = query;
 
-    const where: Prisma.UserWhereInput = {
-      educatorId,
-      role: "patient",
-    };
+    const where: Prisma.UserWhereInput = this.buildPatientFilter(user);
 
     const dateFilter = buildDateRangeFilter(from, to);
     if (dateFilter) where.createdAt = dateFilter;
@@ -61,7 +66,7 @@ export class EducatorsService {
     };
   }
 
-  async findMyPatientById(educatorId: string, patientId: string) {
+  async findMyPatientById(user: AuthUser, patientId: string) {
     const patient = await this.prisma.user.findUnique({
       where: { id: patientId },
       include: {
@@ -78,19 +83,19 @@ export class EducatorsService {
       throw new NotFoundException("Patient not found");
     }
 
-    if (patient.educatorId !== educatorId) {
-      throw new ForbiddenException("Patient not assigned to you");
+    if (user.role !== "super_educator" && patient.organizationId !== user.orgId) {
+      throw new ForbiddenException("Patient does not belong to your organization");
     }
 
     return patient;
   }
 
   async updateMyPatient(
-    educatorId: string,
+    user: AuthUser,
     patientId: string,
     dto: UpdatePatientDto
   ) {
-    await this.findMyPatientById(educatorId, patientId);
+    await this.findMyPatientById(user, patientId);
 
     return this.prisma.user.update({
       where: { id: patientId },

@@ -62,7 +62,7 @@ export class UsersService {
       }));
 
     const hardware = await this.prisma.hardwareSupply.findMany({
-      where: { userId },
+      where: { userId, status: 'active' },
       include: {
         activityLogs: {
           include: {

@@ -36,6 +36,9 @@ export class CreateUserDto {
   @IsOptional() @IsUUID() doctor?: string;
   @IsOptional() @IsUUID() educator?: string;
   @IsOptional() @IsString() province?: string;
+  @IsOptional() @IsString() familyContactName?: string;
+  @IsOptional() @IsString() familyContactPhone?: string;
+  @IsOptional() @IsString() familyContactRelationship?: string;
 
   @IsOptional()
   @IsArray()

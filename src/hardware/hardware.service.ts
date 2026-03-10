@@ -7,7 +7,7 @@ export class HardwareService {
 
   async findByUserId(userId: string) {
     return this.prisma.hardwareSupply.findMany({
-      where: { userId },
+      where: { userId, status: 'active' },
       include: {
         user: {
           select: {

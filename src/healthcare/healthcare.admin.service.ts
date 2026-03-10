@@ -17,18 +17,16 @@ export class HealthcareAdminService {
   async create(data: CreateHealthcareDto, user: AuthUser) {
     const organizationId = getCreateOrgId(user, data.organizationId);
 
-    const code = data.name.toUpperCase();
     const exists = await this.prisma.healthcare.findFirst({
-      where: {
-        OR: [{ name: data.name }, { code }],
-      },
+      where: { cuit: data.cuit },
     });
     if (exists)
-      throw new ConflictException("Healthcare with this name or code exists");
+      throw new ConflictException("Healthcare with this CUIT already exists");
     return this.prisma.healthcare.create({
       data: {
-        name: data.name,
-        code,
+        tradeName: data.tradeName,
+        legalName: data.legalName,
+        cuit: data.cuit,
         organizationId,
       },
     });
@@ -55,18 +53,6 @@ export class HealthcareAdminService {
             role: true,
           },
         },
-        doctors: {
-          include: {
-            doctor: {
-              select: {
-                id: true,
-                name: true,
-                province: true,
-                telephone: true,
-              },
-            },
-          },
-        },
       },
     });
   }
@@ -81,18 +67,6 @@ export class HealthcareAdminService {
             fullName: true,
             email: true,
             role: true,
-          },
-        },
-        doctors: {
-          include: {
-            doctor: {
-              select: {
-                id: true,
-                name: true,
-                province: true,
-                telephone: true,
-              },
-            },
           },
         },
       },

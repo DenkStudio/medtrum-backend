@@ -6,7 +6,8 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateHardwareSupplyDto } from "./dto/create-hardware-supply.dto";
-import { HardwareActivityType } from "@prisma/client";
+import { UpdateHardwareSupplyDto } from "./dto/update-hardware-supply.dto";
+import { HardwareActivityType, HardwareStatus, SupplyType } from "@prisma/client";
 import {
   AuthUser,
   buildOrgFilter,
@@ -38,10 +39,23 @@ export class HardwareAdminService {
       );
     }
 
+    // Mark existing active hardware of the same type for this user as replaced
+    if (dto.userId) {
+      await this.prisma.hardwareSupply.updateMany({
+        where: {
+          userId: dto.userId,
+          type: dto.type,
+          status: HardwareStatus.active,
+        },
+        data: { status: HardwareStatus.replaced },
+      });
+    }
+
     const supply = await this.prisma.hardwareSupply.create({
       data: {
         type: dto.type,
         serialNumber: dto.serialNumber,
+        lotNumber: dto.lotNumber,
         userId: dto.userId,
         organizationId,
         assignedDate: new Date(),
@@ -57,12 +71,120 @@ export class HardwareAdminService {
       },
     });
 
+    // Auto-create companion CABLE_TRANSMISOR when creating a TRANSMISOR
+    if (dto.type === SupplyType.TRANSMISOR) {
+      const cableExists = await this.prisma.hardwareSupply.findFirst({
+        where: {
+          serialNumber: dto.serialNumber,
+          type: SupplyType.CABLE_TRANSMISOR,
+        },
+      });
+
+      if (!cableExists) {
+        // Mark existing active CABLE_TRANSMISOR for this user as replaced
+        if (dto.userId) {
+          await this.prisma.hardwareSupply.updateMany({
+            where: {
+              userId: dto.userId,
+              type: SupplyType.CABLE_TRANSMISOR,
+              status: HardwareStatus.active,
+            },
+            data: { status: HardwareStatus.replaced },
+          });
+        }
+
+        const cable = await this.prisma.hardwareSupply.create({
+          data: {
+            type: SupplyType.CABLE_TRANSMISOR,
+            serialNumber: dto.serialNumber,
+            lotNumber: dto.lotNumber,
+            userId: dto.userId,
+            organizationId,
+            assignedDate: new Date(),
+          },
+        });
+
+        await this.prisma.hardwareActivityLog.create({
+          data: {
+            hardwareId: cable.id,
+            type: HardwareActivityType.assignment,
+            userId: createdByUserId,
+            newUserId: dto.userId,
+          },
+        });
+      }
+    }
+
     return supply;
   }
 
   async deleteMany(ids: string[]) {
     return this.prisma.hardwareSupply.deleteMany({
       where: { id: { in: ids } },
+    });
+  }
+
+  async update(id: string, dto: UpdateHardwareSupplyDto, user: AuthUser) {
+    const hardware = await this.prisma.hardwareSupply.findUnique({
+      where: { id },
+    });
+
+    if (!hardware) throw new NotFoundException("Hardware supply not found");
+
+    if (!canAccessOrg(user, hardware.organizationId)) {
+      throw new ForbiddenException(
+        "Cannot access hardware from different organization",
+      );
+    }
+
+    if (dto.serialNumber || dto.type) {
+      const checkType = dto.type || hardware.type;
+      const checkSerial = dto.serialNumber || hardware.serialNumber;
+
+      const duplicate = await this.prisma.hardwareSupply.findFirst({
+        where: {
+          serialNumber: checkSerial,
+          type: checkType,
+          id: { not: id },
+        },
+      });
+
+      if (duplicate) {
+        throw new ConflictException(
+          `Hardware of type ${checkType} with serial number ${checkSerial} already exists`,
+        );
+      }
+    }
+
+    return this.prisma.hardwareSupply.update({
+      where: { id },
+      data: {
+        ...(dto.type !== undefined && { type: dto.type }),
+        ...(dto.serialNumber !== undefined && { serialNumber: dto.serialNumber }),
+        ...(dto.lotNumber !== undefined && { lotNumber: dto.lotNumber }),
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.userId !== undefined && { userId: dto.userId }),
+        ...(dto.organizationId !== undefined && { organizationId: dto.organizationId }),
+        ...(dto.placementDate !== undefined && { placementDate: new Date(dto.placementDate) }),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            doctor: true,
+            healthcare: true,
+          },
+        },
+        activityLogs: {
+          include: {
+            user: { select: { id: true, fullName: true, email: true } },
+            previousUser: { select: { id: true, fullName: true, email: true } },
+            newUser: { select: { id: true, fullName: true, email: true } },
+          },
+        },
+      },
     });
   }
 
@@ -174,12 +296,24 @@ export class HardwareAdminService {
 
     const previousUserId = hardware.userId;
 
+    // Mark existing active hardware of the same type for the new user as replaced
+    await this.prisma.hardwareSupply.updateMany({
+      where: {
+        userId,
+        type: hardware.type,
+        status: HardwareStatus.active,
+        id: { not: hardwareId },
+      },
+      data: { status: HardwareStatus.replaced },
+    });
+
     await this.prisma.$transaction([
       this.prisma.hardwareSupply.update({
         where: { id: hardwareId },
         data: {
           userId,
           assignedDate: new Date(),
+          status: HardwareStatus.active,
         },
       }),
       this.prisma.hardwareActivityLog.create({
@@ -250,12 +384,24 @@ export class HardwareAdminService {
 
     const previousUserId = hardware.userId;
 
+    // Mark existing active hardware of the same type for the new user as replaced
+    await this.prisma.hardwareSupply.updateMany({
+      where: {
+        userId: newUserId,
+        type: hardware.type,
+        status: HardwareStatus.active,
+        id: { not: hardwareId },
+      },
+      data: { status: HardwareStatus.replaced },
+    });
+
     await this.prisma.$transaction([
       this.prisma.hardwareSupply.update({
         where: { id: hardwareId },
         data: {
           userId: newUserId,
           assignedDate: new Date(),
+          status: HardwareStatus.active,
         },
       }),
       this.prisma.hardwareActivityLog.create({

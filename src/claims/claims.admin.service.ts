@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
@@ -15,6 +15,18 @@ import {
 import { DeliveriesAdminService } from "../deliveries/deliveries.admin.service";
 import { ClaimsChartQueryDto } from "./dto/claims-chart-query.dto";
 import { parseDate } from "../common/helpers/date.helper";
+import * as ExcelJS from "exceljs";
+
+const SUPPLY_LABELS: Record<string, string> = {
+  SENSOR: "Sensor",
+  PARCHE_200U: "Reservorio Parche 200U",
+  PARCHE_300U: "Reservorio Parche 300U",
+  TRANSMISOR: "Transmisor",
+  BASE_BOMBA_200U: "Base de Sistema de Infusión de Insulina 200U",
+  BASE_BOMBA_300U: "Base de Sistema de Infusión de Insulina 300U",
+  CABLE_TRANSMISOR: "Cable Transmisor",
+  PDM: "PDM",
+};
 
 @Injectable()
 export class ClaimsAdminService {
@@ -37,7 +49,7 @@ export class ClaimsAdminService {
     }
 
     const userFilter: Prisma.UserWhereInput = {};
-    if (user.role === "educator" && user.educatorId) {
+    if ((user.role === "educator" || user.role === "super_educator") && user.educatorId) {
       userFilter.educatorId = user.educatorId;
     } else if (orgFilter.organizationId) {
       userFilter.organizationId = orgFilter.organizationId;
@@ -69,12 +81,124 @@ export class ClaimsAdminService {
     };
   }
 
+  async exportExcel(query: QueryOptionsDto, user: AuthUser): Promise<Buffer> {
+    const { sort, status, search, from, to } = query;
+
+    const orgFilter = buildOrgFilter(user);
+    const where: Prisma.ClaimWhereInput = {};
+
+    const dateFilter = buildDateRangeFilter(from, to);
+    if (dateFilter) where.createdAt = dateFilter;
+    if (status) {
+      where.status = status as ClaimStatus;
+    }
+
+    const userFilter: Prisma.UserWhereInput = {};
+    if ((user.role === "educator" || user.role === "super_educator") && user.educatorId) {
+      userFilter.educatorId = user.educatorId;
+    } else if (orgFilter.organizationId) {
+      userFilter.organizationId = orgFilter.organizationId;
+    }
+    if (search) {
+      userFilter.fullName = { contains: search, mode: "insensitive" };
+    }
+    if (Object.keys(userFilter).length > 0) {
+      where.user = userFilter;
+    }
+
+    const claims = await this.prisma.claim.findMany({
+      where,
+      include: {
+        user: {
+          include: {
+            organization: true,
+            hardwareSupplies: true,
+          },
+        },
+      },
+      orderBy: buildOrderBy(sort),
+    });
+
+    const formatDate = (date: Date | null | undefined) => {
+      if (!date) return "-";
+      const d = new Date(date);
+      return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    };
+
+    const errorCodeLabels: Record<string, string> = {
+      SENSOR_FALLA: "Falla de sensor",
+      SENSOR_FALTA_ADHESIVO: "Falta de adhesivo (sensor)",
+      SENSOR_DIFERENCIA_CAPILAR: "Diferencia capilar",
+      SENSOR_PERDIDO: "Sensor perdido",
+      SENSOR_DESCONOCIDO: "Desconocido (sensor)",
+      SENSOR_SANGRADO_COLOCACION: "Sangrado en colocación",
+      SENSOR_OTROS: "Otros (sensor)",
+      PARCHE_FALTA_ADHESIVO: "Falta de adhesivo (parche)",
+      PARCHE_ERROR: "Error de parche",
+      PARCHE_OBSTRUCCION: "Obstrucción",
+      PARCHE_BATERIA_AGOTADA: "Batería agotada",
+      PARCHE_ERROR_CEBADO: "Error de cebado",
+      PARCHE_DESACTIVADO: "Desactivado",
+      PARCHE_OTROS: "Otros (parche)",
+      TRANSMISOR_CONECTORES_OXIDADOS: "Conectores oxidados",
+    };
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Reclamos");
+
+    sheet.columns = [
+      { header: "Nombre de paciente", key: "patientName", width: 30 },
+      { header: "DNI", key: "dni", width: 16 },
+      { header: "Insumo", key: "supply", width: 20 },
+      { header: "Lote", key: "lotNumber", width: 18 },
+      { header: "Serie", key: "serialNumber", width: 18 },
+      { header: "Fecha de colocación", key: "colocationDate", width: 18 },
+      { header: "Fecha de Falla", key: "failureDate", width: 18 },
+      { header: "Días no utilizados", key: "daysClaimed", width: 20 },
+      { header: "Motivo de Falla", key: "errorCode", width: 30 },
+      { header: "Distribuidor", key: "distributor", width: 20 },
+    ];
+
+    sheet.getRow(1).font = { bold: true };
+
+    for (const claim of claims) {
+      let lotNumber = claim.lotNumber;
+      let serialNumber: string | null = null;
+
+      if ((!lotNumber || !serialNumber) && claim.supply) {
+        const hw = claim.user.hardwareSupplies?.find(
+          (h) => h.type === claim.supply,
+        );
+        if (hw) {
+          if (!lotNumber) lotNumber = hw.lotNumber;
+          if (!serialNumber) serialNumber = hw.serialNumber;
+        }
+      }
+
+      sheet.addRow({
+        patientName: claim.user.fullName ?? "-",
+        dni: claim.user.dni ?? "-",
+        supply: claim.supply ? (SUPPLY_LABELS[claim.supply] ?? claim.supply) : "-",
+        lotNumber: lotNumber ?? "-",
+        serialNumber: serialNumber ?? "-",
+        colocationDate: formatDate(claim.colocationDate),
+        failureDate: formatDate(claim.failureDate),
+        daysClaimed: claim.daysClaimed ?? "-",
+        errorCode: claim.errorCode ? (errorCodeLabels[claim.errorCode] ?? claim.errorCode) : "-",
+        distributor: claim.user.organization?.name ?? "-",
+      });
+    }
+
+    const arrayBuffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(arrayBuffer as ArrayBuffer);
+  }
+
   async findOne(claimId: string, user?: AuthUser) {
     const claim = await this.prisma.claim.findUnique({
       where: { id: claimId },
       include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } } },
     });
-    if (claim && user?.role === "educator" && user.educatorId) {
+    if (claim && (user?.role === "educator" || user?.role === "super_educator") && user.educatorId) {
       if (claim.user.educatorId !== user.educatorId) {
         throw new ForbiddenException("No tiene acceso a este reclamo");
       }
@@ -83,7 +207,7 @@ export class ClaimsAdminService {
   }
 
   async findByUserId(userId: string, user?: AuthUser) {
-    if (user?.role === "educator" && user.educatorId) {
+    if ((user?.role === "educator" || user?.role === "super_educator") && user.educatorId) {
       const patient = await this.prisma.user.findUnique({ where: { id: userId } });
       if (!patient || patient.educatorId !== user.educatorId) {
         throw new ForbiddenException("No tiene acceso a los reclamos de este usuario");
@@ -102,10 +226,21 @@ export class ClaimsAdminService {
     qty: number,
     daysReimbursed?: number,
     resolutionMessage?: string,
-    user?: AuthUser
+    user?: AuthUser,
+    returnedLots?: { lotNumber: string; qty: number }[]
   ) {
     const claim = await this.prisma.claim.findUnique({ where: { id } });
     if (!claim) throw new NotFoundException("Claim not found");
+
+    // Validate returnedLots sum matches qty
+    if (returnedLots?.length) {
+      const lotsTotal = returnedLots.reduce((sum, lot) => sum + lot.qty, 0);
+      if (lotsTotal !== qty) {
+        throw new BadRequestException(
+          `La suma de cantidades por lote (${lotsTotal}) no coincide con la cantidad total (${qty})`
+        );
+      }
+    }
 
     const updateData: Prisma.ClaimUpdateInput = {
       status,
@@ -117,26 +252,63 @@ export class ClaimsAdminService {
       updateData.resolutionMessage = resolutionMessage;
     }
 
+    if (returnedLots?.length) {
+      updateData.returnedLots = returnedLots;
+    }
+
     if (
       status === "approved" &&
       (claim.supply === SupplyType.SENSOR ||
         claim.supply === SupplyType.PARCHE_200U ||
         claim.supply === SupplyType.PARCHE_300U)
     ) {
-      // Create a delivery record for the reimbursement
+      // Create delivery records for the reimbursement
       if (user) {
-        await this.deliveries.create(
-          {
-            userId: claim.userId,
-            claimId: claim.id,
-            quantity: qty,
-            daysReimbursed,
-            itemName: claim.supply ?? undefined,
-            observations: resolutionMessage,
-          },
-          user.userId,
-          user
-        );
+        if (returnedLots?.length) {
+          // Create one delivery per lot, all linked to this claim
+          for (const lot of returnedLots) {
+            await this.prisma.delivery.create({
+              data: {
+                type: "claim_reimbursement",
+                userId: claim.userId,
+                organizationId: user.orgId ?? null,
+                claimId: claim.id,
+                quantity: lot.qty,
+                daysReimbursed: daysReimbursed
+                  ? Math.round((lot.qty / qty) * daysReimbursed)
+                  : undefined,
+                itemName: claim.supply ?? undefined,
+                lotNumber: lot.lotNumber,
+                date: new Date(),
+                assignedById: user.userId,
+                observations: resolutionMessage,
+              },
+            });
+          }
+
+          // Update balance days with the full daysReimbursed
+          if (daysReimbursed && claim.supply) {
+            await this.users.updateBalanceDays(
+              claim.userId,
+              daysReimbursed,
+              claim.supply
+            );
+          }
+        } else {
+          // No lots specified — single delivery as before
+          await this.deliveries.create(
+            {
+              userId: claim.userId,
+              claimId: claim.id,
+              quantity: qty,
+              daysReimbursed,
+              itemName: claim.supply ?? undefined,
+              observations: resolutionMessage,
+            },
+            user.userId,
+            user
+          );
+        }
 
         // Save the user's balance after the update
         const updatedPatient = await this.prisma.user.findUnique({
@@ -174,6 +346,39 @@ export class ClaimsAdminService {
     });
   }
 
+  async addObservation(id: string, text: string, user: AuthUser) {
+    const claim = await this.prisma.claim.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+    if (!claim) throw new NotFoundException("Claim not found");
+
+    if ((user?.role === "educator" || user?.role === "super_educator") && user.educatorId) {
+      if (claim.user.educatorId !== user.educatorId) {
+        throw new ForbiddenException("No tiene acceso a este reclamo");
+      }
+    }
+
+    const author = await this.prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { fullName: true, email: true },
+    });
+
+    const currentObservations = (claim.observations as any[]) || [];
+    const newObservation = {
+      text,
+      date: new Date().toISOString(),
+      authorId: user.userId,
+      authorName: author?.fullName || author?.email || user.userId,
+    };
+
+    return this.prisma.claim.update({
+      where: { id },
+      data: { observations: [...currentObservations, newObservation] },
+      include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } } },
+    });
+  }
+
   private buildDateRange(startDate: string, endDate: string) {
     const start = parseDate(startDate);
     start.setUTCHours(0, 0, 0, 0);
@@ -190,7 +395,7 @@ export class ClaimsAdminService {
       createdAt: this.buildDateRange(startDate, endDate),
     };
 
-    if (user.role === "educator" && user.educatorId) {
+    if ((user.role === "educator" || user.role === "super_educator") && user.educatorId) {
       where.user = { educatorId: user.educatorId };
     } else if (orgFilter.organizationId) {
       where.user = { organizationId: orgFilter.organizationId };
@@ -240,7 +445,7 @@ export class ClaimsAdminService {
     const datasets = supplies.map((supply, i) => {
       const color = colors[i % colors.length];
       return {
-        label: supply,
+        label: SUPPLY_LABELS[supply] ?? supply,
         data: labels.map((label) => monthlyMap.get(label)?.get(supply) || 0),
         backgroundColor: color.bg,
         hoverBackgroundColor: color.hover,
@@ -258,7 +463,7 @@ export class ClaimsAdminService {
     const orgFilter = buildOrgFilter(user);
 
     const userWhere: Prisma.UserWhereInput = { role: "patient" };
-    if (user.role === "educator" && user.educatorId) {
+    if ((user.role === "educator" || user.role === "super_educator") && user.educatorId) {
       userWhere.educatorId = user.educatorId;
     } else if (orgFilter.organizationId) {
       userWhere.organizationId = orgFilter.organizationId;

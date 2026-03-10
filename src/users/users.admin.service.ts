@@ -11,7 +11,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
-import { UserRole, SupplyType, Prisma } from "@prisma/client";
+import { UserRole, Prisma } from "@prisma/client";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import {
   PaginatedResult,
@@ -120,6 +120,9 @@ export class UsersAdminService {
         doctorId: dto.doctor,
         educatorId: dto.educator,
         province: dto.province,
+        familyContactName: dto.familyContactName,
+        familyContactPhone: dto.familyContactPhone,
+        familyContactRelationship: dto.familyContactRelationship,
       },
     });
 
@@ -133,45 +136,23 @@ export class UsersAdminService {
       ) {
         const createdBy = createdByUserId || created.id;
 
-        const hardwarePromises = dto.hardwares.flatMap((hardware) => {
-          const promises = [
-            this.hardwareService
-              .create(
-                {
-                  type: hardware.type,
-                  serialNumber: hardware.serialNumber,
-                  userId: created.id,
-                },
-                createdBy,
-                organizationId
-              )
-              .then((hw) => {
-                createdHardwareIds.push(hw.id);
-                return hw;
-              }),
-          ];
-
-          if (hardware.type === SupplyType.TRANSMISOR) {
-            promises.push(
-              this.hardwareService
-                .create(
-                  {
-                    type: SupplyType.CABLE_TRANSMISOR,
-                    serialNumber: hardware.serialNumber,
-                    userId: created.id,
-                  },
-                  createdBy,
-                  organizationId
-                )
-                .then((hw) => {
-                  createdHardwareIds.push(hw.id);
-                  return hw;
-                })
-            );
-          }
-
-          return promises;
-        });
+        const hardwarePromises = dto.hardwares.map((hardware) =>
+          this.hardwareService
+            .create(
+              {
+                type: hardware.type,
+                serialNumber: hardware.serialNumber,
+                lotNumber: hardware.lotNumber,
+                userId: created.id,
+              },
+              createdBy,
+              organizationId
+            )
+            .then((hw) => {
+              createdHardwareIds.push(hw.id);
+              return hw;
+            }),
+        );
 
         await Promise.all(hardwarePromises);
       }
@@ -355,6 +336,18 @@ export class UsersAdminService {
       updateData.province = dto.province;
     }
 
+    if (dto.familyContactName !== undefined) {
+      updateData.familyContactName = dto.familyContactName;
+    }
+
+    if (dto.familyContactPhone !== undefined) {
+      updateData.familyContactPhone = dto.familyContactPhone;
+    }
+
+    if (dto.familyContactRelationship !== undefined) {
+      updateData.familyContactRelationship = dto.familyContactRelationship;
+    }
+
     const updated = await this.prisma.user.update({
       where: { id },
       data: updateData,
@@ -451,6 +444,14 @@ export class UsersAdminService {
     if (query?.doctor) {
       where.doctorId = query.doctor;
     }
+    if (query?.from || query?.to) {
+      const dateFilter = buildDateRangeFilter(query.from, query.to);
+      if (dateFilter) where.createdAt = dateFilter;
+    }
+    if (query?.search) {
+      const searchFilter = buildSearchFilter(query.search, ["email", "fullName"]);
+      if (searchFilter) where.AND = [searchFilter];
+    }
 
     return this.prisma.user.findMany({
       where,
@@ -458,6 +459,7 @@ export class UsersAdminService {
         healthcare: true,
         doctor: true,
       },
+      orderBy: buildOrderBy(query?.sort),
     });
   }
 

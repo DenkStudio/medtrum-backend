@@ -23,7 +23,7 @@ export class EducatorsController {
   constructor(private readonly educatorsService: EducatorsService) {}
 
   @Get("patients")
-  @Roles("educator")
+  @Roles("educator", "super_educator")
   findMyPatients(
     @CurrentUser() user: AuthUser,
     @Query() query: QueryOptionsDto
@@ -31,11 +31,11 @@ export class EducatorsController {
     if (!user.educatorId) {
       throw new ForbiddenException("No educator profile linked");
     }
-    return this.educatorsService.findMyPatients(user.educatorId, query);
+    return this.educatorsService.findMyPatients(user, query);
   }
 
   @Get("patients/:id")
-  @Roles("educator")
+  @Roles("educator", "super_educator")
   findMyPatientById(
     @CurrentUser() user: AuthUser,
     @Param("id") id: string
@@ -43,11 +43,11 @@ export class EducatorsController {
     if (!user.educatorId) {
       throw new ForbiddenException("No educator profile linked");
     }
-    return this.educatorsService.findMyPatientById(user.educatorId, id);
+    return this.educatorsService.findMyPatientById(user, id);
   }
 
   @Patch("patients/:id")
-  @Roles("educator")
+  @Roles("educator", "super_educator")
   updateMyPatient(
     @CurrentUser() user: AuthUser,
     @Param("id") id: string,
@@ -56,6 +56,6 @@ export class EducatorsController {
     if (!user.educatorId) {
       throw new ForbiddenException("No educator profile linked");
     }
-    return this.educatorsService.updateMyPatient(user.educatorId, id, dto);
+    return this.educatorsService.updateMyPatient(user, id, dto);
   }
 }

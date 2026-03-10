@@ -46,7 +46,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     let educatorId: string | undefined;
-    if (user.role === "educator") {
+    if (user.role === "educator" || user.role === "super_educator") {
       const educator = await this.prisma.educator.findUnique({
         where: { userId: user.id },
       });

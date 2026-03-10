@@ -35,18 +35,18 @@ export class ExcelExportService {
 
   async exportUsers(rows: any[]) {
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("Usuarios con Reclamos");
+    const ws = wb.addWorksheet("Usuarios");
 
-    // Agregar encabezados
-    const headerRow = ws.addRow([
-      "Nombre",
-      "Obra Social",
-      "Doctor",
-      "Balance Sensor (días)",
-      "Balance Parche (días)",
-    ]);
+    ws.columns = [
+      { header: "Nombre", key: "name", width: 30 },
+      { header: "Email", key: "email", width: 30 },
+      { header: "Saldo de días (sensor)", key: "balanceSensor", width: 22 },
+      { header: "Saldo de días (parche)", key: "balanceParche", width: 22 },
+      { header: "Médico", key: "doctor", width: 25 },
+      { header: "Obra Social", key: "healthcare", width: 25 },
+    ];
 
-    // Estilizar encabezados
+    const headerRow = ws.getRow(1);
     headerRow.font = { bold: true };
     headerRow.fill = {
       type: "pattern",
@@ -54,36 +54,27 @@ export class ExcelExportService {
       fgColor: { argb: "FFE0E0E0" },
     };
 
-    // Agregar datos
     if (rows && rows.length > 0) {
       rows.forEach((user) => {
-        ws.addRow([
-          user.fullName || "",
-          user.healthcare?.name || "",
-          user.doctor?.name || "",
-          user.balanceDaysSensor ?? 0,
-          user.balanceDaysParche ?? 0,
-        ]);
+        ws.addRow({
+          name: user.fullName || "",
+          email: user.email || "",
+          balanceSensor: user.balanceDaysSensor ?? 0,
+          balanceParche: user.balanceDaysParche ?? 0,
+          doctor: user.doctor?.name || "-",
+          healthcare: user.healthcare?.name || "-",
+        });
       });
     }
 
-    ws.columns = [
-      { width: 30 },
-      { width: 25 },
-      { width: 25 },
-      { width: 20 },
-      { width: 20 },
-    ];
-
     const buffer = await wb.xlsx.writeBuffer();
 
-    // Asegurar que el buffer es válido
     if (!buffer || buffer.byteLength === 0) {
       throw new Error("Error al generar el archivo Excel");
     }
 
     return new StreamableFile(Buffer.from(buffer), {
-      disposition: 'attachment; filename="usuarios-con-reclamos.xlsx"',
+      disposition: 'attachment; filename="usuarios.xlsx"',
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
   }

@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsBoolean, IsEnum, IsDateString } from "class-validator";
+import { IsOptional, IsString, IsEnum, IsDateString } from "class-validator";
 import { ClaimErrorCode, SupplyType } from "@prisma/client";
 
 export class CreateClaimDto {
@@ -6,7 +6,6 @@ export class CreateClaimDto {
   @IsOptional() daysClaimed!: number;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() lotNumber?: string;
-  @IsOptional() @IsBoolean() needsReplacement?: boolean;
   @IsOptional() @IsEnum(SupplyType) claimCategory?: SupplyType;
   @IsOptional() @IsEnum(ClaimErrorCode) errorCode?: ClaimErrorCode;
   @IsOptional() @IsString() photoUrl?: string;

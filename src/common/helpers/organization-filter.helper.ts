@@ -14,7 +14,7 @@ export interface AuthUser {
  * Returns { organizationId: orgId } for admin.
  */
 export function buildOrgFilter(user: AuthUser): { organizationId?: string } {
-  if (user.role === "superadmin") {
+  if (user.role === "superadmin" || user.role === "super_educator") {
     return {};
   }
   if (!user.orgId) {
@@ -48,7 +48,7 @@ export function canAccessOrg(
   user: AuthUser,
   targetOrgId?: string | null
 ): boolean {
-  if (user.role === "superadmin") return true;
+  if (user.role === "superadmin" || user.role === "super_educator") return true;
   if (!targetOrgId) return true;
   return user.orgId === targetOrgId;
 }

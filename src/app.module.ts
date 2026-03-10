@@ -13,6 +13,7 @@ import { MedicalEntriesModule } from "./medical-entries/medical-entries.module";
 import { EducatorsModule } from "./educators/educators.module";
 import { SupabaseModule } from "./supabase/supabase.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
+import { CalendarModule } from "./calendar/calendar.module";
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { DeliveriesModule } from "./deliveries/deliveries.module";
     MedicalEntriesModule,
     EducatorsModule,
     DeliveriesModule,
+    CalendarModule,
   ],
 })
 export class AppModule {}

@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -14,11 +15,19 @@ import { Roles } from "../common/decorators/roles.decorator";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import { CurrentUser } from "../common/decorators/user.decorator";
 import { AuthUser } from "../common/helpers/organization-filter.helper";
+import { UpdateHardwareSupplyDto } from "./dto/update-hardware-supply.dto";
+import { CreateHardwareSupplyDto } from "./dto/create-hardware-supply.dto";
 
 @Controller("admin/hardware")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class HardwareAdminController {
   constructor(private readonly service: HardwareAdminService) {}
+
+  @Post()
+  @Roles("admin", "superadmin")
+  create(@Body() dto: CreateHardwareSupplyDto, @CurrentUser() user: AuthUser) {
+    return this.service.create(dto, user.userId, user.orgId);
+  }
 
   @Get()
   @Roles("admin", "superadmin")
@@ -48,6 +57,16 @@ export class HardwareAdminController {
   @Roles("admin", "superadmin")
   findOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.service.findOne(id, user);
+  }
+
+  @Patch(":id")
+  @Roles("admin", "superadmin")
+  update(
+    @Param("id") id: string,
+    @Body() dto: UpdateHardwareSupplyDto,
+    @CurrentUser() user: AuthUser
+  ) {
+    return this.service.update(id, dto, user);
   }
 
   @Post(":id/assign")

@@ -24,18 +24,6 @@ export class DoctorsAdminService {
         province: data.province,
         telephone: data.telephone,
         organizationId,
-        healthcares: data.healthcares?.length
-          ? {
-              create: data.healthcares.map((healthcareId) => ({
-                healthcareId,
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        healthcares: {
-          include: { healthcare: true },
-        },
       },
     });
   }
@@ -50,12 +38,9 @@ export class DoctorsAdminService {
     const dateFilter = buildDateRangeFilter(from, to);
     if (dateFilter) where.createdAt = dateFilter;
 
-    const doctors = await this.prisma.doctor.findMany({
+    return this.prisma.doctor.findMany({
       where,
       include: {
-        healthcares: {
-          include: { healthcare: true },
-        },
         patients: {
           where: { role: "patient" },
           select: {
@@ -72,21 +57,12 @@ export class DoctorsAdminService {
         },
       },
     });
-
-    // Transform healthcares to flat array for API compatibility
-    return doctors.map((doctor) => ({
-      ...doctor,
-      healthcares: doctor.healthcares.map((dh) => dh.healthcare),
-    }));
   }
 
   async findById(id: string, user: AuthUser) {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id },
       include: {
-        healthcares: {
-          include: { healthcare: true },
-        },
         patients: {
           where: { role: "patient" },
           select: {
@@ -112,41 +88,17 @@ export class DoctorsAdminService {
       throw new ForbiddenException("Cannot access doctor from different organization");
     }
 
-    return {
-      ...doctor,
-      healthcares: doctor.healthcares.map((dh) => dh.healthcare),
-    };
+    return doctor;
   }
 
   async update(id: string, data: Partial<CreateDoctorDto>, user: AuthUser) {
     await this.findById(id, user);
 
-    // If healthcares are provided, we need to update the many-to-many relation
-    if (data.healthcares) {
-      // Delete existing relations
-      await this.prisma.doctorHealthcare.deleteMany({
-        where: { doctorId: id },
-      });
-
-      // Create new relations
-      await this.prisma.doctorHealthcare.createMany({
-        data: data.healthcares.map((healthcareId) => ({
-          doctorId: id,
-          healthcareId,
-        })),
-      });
-    }
-
-    const { healthcares, organizationId, ...updateData } = data;
+    const { organizationId, ...updateData } = data;
 
     return this.prisma.doctor.update({
       where: { id },
       data: updateData,
-      include: {
-        healthcares: {
-          include: { healthcare: true },
-        },
-      },
     });
   }
 

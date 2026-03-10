@@ -23,7 +23,7 @@ export class MedicalEntriesEducatorController {
   constructor(private readonly service: MedicalEntriesEducatorService) {}
 
   @Post()
-  @Roles("educator")
+  @Roles("educator", "super_educator")
   create(
     @Body() dto: CreateMedicalEntryDto,
     @CurrentUser() user: AuthUser
@@ -31,11 +31,11 @@ export class MedicalEntriesEducatorController {
     if (!user.educatorId) {
       throw new ForbiddenException("No educator profile linked");
     }
-    return this.service.create(user.educatorId, user.userId, dto);
+    return this.service.create(user, dto);
   }
 
   @Get("patient/:patientId")
-  @Roles("educator")
+  @Roles("educator", "super_educator")
   findByPatientId(
     @Param("patientId") patientId: string,
     @Query() query: QueryOptionsDto,
@@ -44,11 +44,11 @@ export class MedicalEntriesEducatorController {
     if (!user.educatorId) {
       throw new ForbiddenException("No educator profile linked");
     }
-    return this.service.findByPatientId(user.educatorId, patientId, query);
+    return this.service.findByPatientId(user, patientId, query);
   }
 
   @Get(":id")
-  @Roles("educator")
+  @Roles("educator", "super_educator")
   findOne(
     @Param("id") id: string,
     @CurrentUser() user: AuthUser
@@ -56,6 +56,6 @@ export class MedicalEntriesEducatorController {
     if (!user.educatorId) {
       throw new ForbiddenException("No educator profile linked");
     }
-    return this.service.findOne(user.educatorId, id);
+    return this.service.findOne(user, id);
   }
 }

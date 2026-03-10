@@ -8,13 +8,14 @@ import { CreateMedicalEntryDto } from "./dto/create-medical-entry.dto";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import { PaginatedResult, buildOrderBy, buildDateRangeFilter } from "src/utils/paginate-query";
 import { parseDate } from "../common/helpers/date.helper";
+import { AuthUser } from "../common/helpers/organization-filter.helper";
 
 @Injectable()
 export class MedicalEntriesEducatorService {
   constructor(private prisma: PrismaService) {}
 
-  private async validatePatientOwnership(
-    educatorId: string,
+  private async validatePatientAccess(
+    user: AuthUser,
     patientId: string
   ) {
     const patient = await this.prisma.user.findUnique({
@@ -25,24 +26,23 @@ export class MedicalEntriesEducatorService {
       throw new NotFoundException("Patient not found");
     }
 
-    if (patient.educatorId !== educatorId) {
-      throw new ForbiddenException("Patient not assigned to you");
+    if (user.role !== "super_educator" && patient.organizationId !== user.orgId) {
+      throw new ForbiddenException("Patient does not belong to your organization");
     }
 
     return patient;
   }
 
   async create(
-    educatorId: string,
-    userId: string,
+    user: AuthUser,
     dto: CreateMedicalEntryDto
   ) {
-    await this.validatePatientOwnership(educatorId, dto.patientId);
+    await this.validatePatientAccess(user, dto.patientId);
 
     return this.prisma.medicalEntry.create({
       data: {
         patientId: dto.patientId,
-        createdById: userId,
+        createdById: user.userId,
         visitDate: parseDate(dto.visitDate),
         notes: dto.notes,
       },
@@ -54,11 +54,11 @@ export class MedicalEntriesEducatorService {
   }
 
   async findByPatientId(
-    educatorId: string,
+    user: AuthUser,
     patientId: string,
     query: QueryOptionsDto
   ): Promise<PaginatedResult<any>> {
-    await this.validatePatientOwnership(educatorId, patientId);
+    await this.validatePatientAccess(user, patientId);
 
     const { page, limit, sort, from, to } = query;
 
@@ -86,7 +86,7 @@ export class MedicalEntriesEducatorService {
     };
   }
 
-  async findOne(educatorId: string, id: string) {
+  async findOne(user: AuthUser, id: string) {
     const entry = await this.prisma.medicalEntry.findUnique({
       where: { id },
       include: { patient: true, createdBy: true },
@@ -94,7 +94,7 @@ export class MedicalEntriesEducatorService {
 
     if (!entry) throw new NotFoundException("Medical entry not found");
 
-    await this.validatePatientOwnership(educatorId, entry.patientId);
+    await this.validatePatientAccess(user, entry.patientId);
 
     return entry;
   }
