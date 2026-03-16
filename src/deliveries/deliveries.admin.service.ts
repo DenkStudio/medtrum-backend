@@ -1,5 +1,6 @@
 import {
   Injectable,
+  ForbiddenException,
   NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
@@ -15,6 +16,7 @@ import {
 import {
   AuthUser,
   buildOrgFilter,
+  canAccessOrg,
   getCreateOrgId,
 } from "../common/helpers/organization-filter.helper";
 import { parseDate } from "../common/helpers/date.helper";
@@ -37,6 +39,10 @@ export class DeliveriesAdminService {
       where: { id: dto.userId },
     });
     if (!patient) throw new NotFoundException("User not found");
+
+    if (!canAccessOrg(user, patient.organizationId)) {
+      throw new ForbiddenException("Cannot create delivery for user from different organization");
+    }
 
     const delivery = await this.prisma.delivery.create({
       data: {
@@ -117,7 +123,7 @@ export class DeliveriesAdminService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user: AuthUser) {
     const delivery = await this.prisma.delivery.findUnique({
       where: { id },
       include: {
@@ -128,6 +134,11 @@ export class DeliveriesAdminService {
     });
 
     if (!delivery) throw new NotFoundException("Delivery not found");
+
+    if (!canAccessOrg(user, delivery.organizationId)) {
+      throw new ForbiddenException("Cannot access delivery from different organization");
+    }
+
     return delivery;
   }
 

@@ -148,6 +148,14 @@ export class CalendarAdminService {
       throw new ForbiddenException("Cannot access this event");
     }
 
+    if (
+      user.role !== "superadmin" &&
+      user.role !== "admin" &&
+      event.createdById !== user.userId
+    ) {
+      throw new ForbiddenException("Can only delete events you created");
+    }
+
     await this.prisma.calendarEvent.delete({ where: { id } });
 
     return { deleted: true };

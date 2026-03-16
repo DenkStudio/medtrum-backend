@@ -1,9 +1,7 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
-  Param,
   Post,
   Query,
   UseGuards,
@@ -34,9 +32,4 @@ export class CalendarAdminController {
     return this.service.create(dto, user);
   }
 
-  @Delete(":id")
-  @Roles("admin", "superadmin", "educator", "super_educator")
-  remove(@Param("id") id: string, @CurrentUser() user: AuthUser) {
-    return this.service.remove(id, user);
-  }
 }

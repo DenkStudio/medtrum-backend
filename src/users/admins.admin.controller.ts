@@ -1,10 +1,7 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
-  Param,
-  Patch,
   Post,
   Query,
   UseGuards,
@@ -34,18 +31,4 @@ export class AdminsAdminController {
     return this.adminsService.findAll(query, user);
   }
 
-  @Get(":id")
-  findById(@Param("id") id: string) {
-    return this.adminsService.findById(id);
-  }
-
-  @Patch(":id")
-  update(@Param("id") id: string, @Body() dto: Partial<CreateAdminDto>) {
-    return this.adminsService.update(id, dto);
-  }
-
-  @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.adminsService.remove(id);
-  }
 }

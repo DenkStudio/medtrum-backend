@@ -35,22 +35,10 @@ export class HardwareAdminController {
     return this.service.findAll(query, user);
   }
 
-  @Get("chart/by-type")
-  @Roles("admin", "superadmin")
-  getChartByType(@CurrentUser() user: AuthUser) {
-    return this.service.getChartByType(user);
-  }
-
-  @Get("chart/errors-by-product")
-  @Roles("admin", "superadmin")
-  getErrorsByProduct(@CurrentUser() user: AuthUser) {
-    return this.service.getErrorsByProduct(user);
-  }
-
   @Get("user/:userId")
   @Roles("admin", "superadmin")
-  findByUserId(@Param("userId") userId: string) {
-    return this.service.findByUserId(userId);
+  findByUserId(@Param("userId") userId: string, @CurrentUser() user: AuthUser) {
+    return this.service.findByUserId(userId, user);
   }
 
   @Get(":id")
@@ -69,49 +57,4 @@ export class HardwareAdminController {
     return this.service.update(id, dto, user);
   }
 
-  @Post(":id/assign")
-  @Roles("admin", "superadmin")
-  assign(
-    @Param("id") hardwareId: string,
-    @Body()
-    body: { userId: string; observations?: string },
-    @CurrentUser() user: AuthUser
-  ) {
-    return this.service.assign(
-      hardwareId,
-      body.userId,
-      user.userId,
-      body.observations
-    );
-  }
-
-  @Post(":id/return")
-  @Roles("admin", "superadmin")
-  returnHardware(
-    @Param("id") hardwareId: string,
-    @Body() body: { observations?: string },
-    @CurrentUser() user: AuthUser
-  ) {
-    return this.service.returnHardware(
-      hardwareId,
-      user.userId,
-      body.observations
-    );
-  }
-
-  @Post(":id/transfer")
-  @Roles("admin", "superadmin")
-  transfer(
-    @Param("id") hardwareId: string,
-    @Body()
-    body: { userId: string; observations?: string },
-    @CurrentUser() user: AuthUser
-  ) {
-    return this.service.transfer(
-      hardwareId,
-      body.userId,
-      user.userId,
-      body.observations
-    );
-  }
 }

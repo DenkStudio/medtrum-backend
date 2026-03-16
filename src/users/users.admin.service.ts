@@ -123,6 +123,7 @@ export class UsersAdminService {
         familyContactName: dto.familyContactName,
         familyContactPhone: dto.familyContactPhone,
         familyContactRelationship: dto.familyContactRelationship,
+        localidadId: dto.localidad,
       },
     });
 
@@ -143,6 +144,7 @@ export class UsersAdminService {
                 type: hardware.type,
                 serialNumber: hardware.serialNumber,
                 lotNumber: hardware.lotNumber,
+                saleDate: hardware.saleDate,
                 userId: created.id,
               },
               createdBy,
@@ -230,6 +232,7 @@ export class UsersAdminService {
         healthcare: true,
         doctor: true,
         educator: true,
+        localidad: true,
         deliveries: {
           include: {
             claim: true,
@@ -334,6 +337,14 @@ export class UsersAdminService {
 
     if (dto.province !== undefined) {
       updateData.province = dto.province;
+    }
+
+    if (dto.localidad !== undefined) {
+      if (dto.localidad) {
+        updateData.localidad = { connect: { id: dto.localidad } };
+      } else {
+        updateData.localidad = { disconnect: true };
+      }
     }
 
     if (dto.familyContactName !== undefined) {
@@ -458,6 +469,7 @@ export class UsersAdminService {
       include: {
         healthcare: true,
         doctor: true,
+        localidad: true,
       },
       orderBy: buildOrderBy(query?.sort),
     });

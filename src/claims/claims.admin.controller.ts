@@ -17,7 +17,6 @@ import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import { ClaimStatus } from "@prisma/client";
 import { CurrentUser } from "../common/decorators/user.decorator";
 import { AuthUser } from "../common/helpers/organization-filter.helper";
-import { ClaimsChartQueryDto } from "./dto/claims-chart-query.dto";
 
 @Controller("admin/claims")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,24 +27,6 @@ export class ClaimsAdminController {
   @Roles("admin", "superadmin", "educator", "super_educator")
   findAll(@Query() query: QueryOptionsDto, @CurrentUser() user: AuthUser) {
     return this.service.findAll(query, user);
-  }
-
-  @Get("chart")
-  @Roles("admin", "superadmin", "educator", "super_educator")
-  getChartData(
-    @Query() query: ClaimsChartQueryDto,
-    @CurrentUser() user: AuthUser,
-  ) {
-    return this.service.getChartData(query, user);
-  }
-
-  @Get("chart/by-user")
-  @Roles("admin", "superadmin", "educator", "super_educator")
-  getClaimsByUserChart(
-    @Query() query: ClaimsChartQueryDto,
-    @CurrentUser() user: AuthUser,
-  ) {
-    return this.service.getClaimsByUserChart(query, user);
   }
 
   @Get("export")

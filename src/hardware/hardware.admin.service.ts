@@ -59,6 +59,7 @@ export class HardwareAdminService {
         userId: dto.userId,
         organizationId,
         assignedDate: new Date(),
+        saleDate: dto.saleDate ? new Date(dto.saleDate) : undefined,
       },
     });
 
@@ -101,6 +102,7 @@ export class HardwareAdminService {
             userId: dto.userId,
             organizationId,
             assignedDate: new Date(),
+            saleDate: dto.saleDate ? new Date(dto.saleDate) : undefined,
           },
         });
 
@@ -224,7 +226,18 @@ export class HardwareAdminService {
     });
   }
 
-  async findByUserId(userId: string) {
+  async findByUserId(userId: string, user: AuthUser) {
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+
+    if (!targetUser) throw new NotFoundException("User not found");
+
+    if (!canAccessOrg(user, targetUser.organizationId)) {
+      throw new ForbiddenException("Cannot access hardware from different organization");
+    }
+
     return this.prisma.hardwareSupply.findMany({
       where: { userId },
       include: {
@@ -286,6 +299,7 @@ export class HardwareAdminService {
     hardwareId: string,
     userId: string,
     assignedByUserId: string,
+    user: AuthUser,
     observations?: string,
   ) {
     const hardware = await this.prisma.hardwareSupply.findUnique({
@@ -293,6 +307,10 @@ export class HardwareAdminService {
     });
 
     if (!hardware) throw new NotFoundException("Hardware supply not found");
+
+    if (!canAccessOrg(user, hardware.organizationId)) {
+      throw new ForbiddenException("Cannot access hardware from different organization");
+    }
 
     const previousUserId = hardware.userId;
 
@@ -334,6 +352,7 @@ export class HardwareAdminService {
   async returnHardware(
     hardwareId: string,
     returnedByUserId: string,
+    user: AuthUser,
     observations?: string,
   ) {
     const hardware = await this.prisma.hardwareSupply.findUnique({
@@ -341,6 +360,11 @@ export class HardwareAdminService {
     });
 
     if (!hardware) throw new NotFoundException("Hardware supply not found");
+
+    if (!canAccessOrg(user, hardware.organizationId)) {
+      throw new ForbiddenException("Cannot access hardware from different organization");
+    }
+
     if (!hardware.userId)
       throw new Error("Hardware is not assigned to any user");
 
@@ -372,6 +396,7 @@ export class HardwareAdminService {
     hardwareId: string,
     newUserId: string,
     transferredByUserId: string,
+    user: AuthUser,
     observations?: string,
   ) {
     const hardware = await this.prisma.hardwareSupply.findUnique({
@@ -379,6 +404,11 @@ export class HardwareAdminService {
     });
 
     if (!hardware) throw new NotFoundException("Hardware supply not found");
+
+    if (!canAccessOrg(user, hardware.organizationId)) {
+      throw new ForbiddenException("Cannot access hardware from different organization");
+    }
+
     if (!hardware.userId)
       throw new Error("Hardware is not assigned to any user");
 

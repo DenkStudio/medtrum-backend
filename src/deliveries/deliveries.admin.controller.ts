@@ -44,7 +44,7 @@ export class DeliveriesAdminController {
 
   @Get(":id")
   @Roles("admin", "superadmin")
-  findOne(@Param("id") id: string) {
-    return this.service.findOne(id);
+  findOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.service.findOne(id, user);
   }
 }

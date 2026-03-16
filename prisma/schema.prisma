@@ -120,6 +120,7 @@ model Organization {
   doctors     Doctor[]
   educators   Educator[]
   healthcares Healthcare[]
+  localidades Localidad[]
 
   hardware       HardwareSupply[]
   deliveries     Delivery[]
@@ -189,6 +190,7 @@ model User {
   address           String?
   birthDate         DateTime? @map("birth_date")
   province          String?
+  localidadId       String?   @map("localidad_id")
   familyContactName         String?   @map("family_contact_name")
   familyContactPhone        String?   @map("family_contact_phone")
   familyContactRelationship String?   @map("family_contact_relationship")
@@ -204,6 +206,7 @@ model User {
   doctor       Doctor?       @relation(fields: [doctorId], references: [id], onDelete: SetNull)
   educator     Educator?     @relation("PatientEducator", fields: [educatorId], references: [id], onDelete: SetNull)
   educatorProfile Educator?  @relation("EducatorUser")
+  localidad    Localidad?    @relation(fields: [localidadId], references: [id], onDelete: SetNull)
 
   claims                      Claim[]              @relation("UserClaims")
   claimsResolved              Claim[]              @relation("ClaimResolvedBy")
@@ -261,6 +264,7 @@ model HardwareSupply {
   status         HardwareStatus @default(active)
   userId         String?        @map("user_id")
   organizationId String?        @map("organization_id")
+  saleDate       DateTime?      @map("sale_date")
   assignedDate   DateTime?      @map("assigned_date")
   placementDate  DateTime?      @map("placement_date")
   createdAt      DateTime       @default(now()) @map("created_at")
@@ -362,4 +366,19 @@ model MedicalEntry {
   createdBy User @relation("MedicalEntryCreatedBy", fields: [createdById], references: [id])
 
   @@map("medical_entries")
+}
+
+model Localidad {
+  id             String   @id @default(uuid())
+  name           String
+  province       String
+  organizationId String?  @map("organization_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  users        User[]
+
+  @@unique([name, province, organizationId])
+  @@map("localidades")
 }

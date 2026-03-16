@@ -24,6 +24,7 @@ export class UpdateUserDto {
   @IsOptional() @IsUUID() doctor?: string;
   @IsOptional() @IsUUID() educator?: string;
   @IsOptional() @IsString() province?: string;
+  @IsOptional() @IsUUID() localidad?: string;
   @IsOptional() @IsString() familyContactName?: string;
   @IsOptional() @IsString() familyContactPhone?: string;
   @IsOptional() @IsString() familyContactRelationship?: string;

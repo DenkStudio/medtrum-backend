@@ -401,16 +401,11 @@ export class ClaimsAdminService {
       where.user = { organizationId: orgFilter.organizationId };
     }
 
-    console.log("Chart query where:", JSON.stringify(where, null, 2));
-    console.log("User:", JSON.stringify(user));
-
     const claims = await this.prisma.claim.findMany({
       where,
       select: { supply: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     });
-
-    console.log("Claims found:", claims.length);
 
     // Collect unique supplies and build monthly buckets
     const suppliesSet = new Set<string>();

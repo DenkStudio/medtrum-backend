@@ -1,9 +1,10 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateHealthcareDto } from "./dto/create-healthcare.dto";
 import {
   AuthUser,
   buildOrgFilter,
+  canAccessOrg,
   getCreateOrgId,
 } from "../common/helpers/organization-filter.helper";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
@@ -57,8 +58,8 @@ export class HealthcareAdminService {
     });
   }
 
-  async findById(id: string) {
-    return this.prisma.healthcare.findUnique({
+  async findById(id: string, user: AuthUser) {
+    const healthcare = await this.prisma.healthcare.findUnique({
       where: { id },
       include: {
         users: {
@@ -71,5 +72,13 @@ export class HealthcareAdminService {
         },
       },
     });
+
+    if (!healthcare) throw new NotFoundException("Healthcare not found");
+
+    if (!canAccessOrg(user, healthcare.organizationId)) {
+      throw new ForbiddenException("Cannot access healthcare from different organization");
+    }
+
+    return healthcare;
   }
 }

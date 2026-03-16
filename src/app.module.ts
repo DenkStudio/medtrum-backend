@@ -14,6 +14,7 @@ import { EducatorsModule } from "./educators/educators.module";
 import { SupabaseModule } from "./supabase/supabase.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
 import { CalendarModule } from "./calendar/calendar.module";
+import { LocalidadesModule } from "./localidades/localidades.module";
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { CalendarModule } from "./calendar/calendar.module";
     EducatorsModule,
     DeliveriesModule,
     CalendarModule,
+    LocalidadesModule,
   ],
 })
 export class AppModule {}

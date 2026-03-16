@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Param,
   Patch,
@@ -59,12 +58,6 @@ export class UsersAdminController {
     return this.usersAdminService.findAll(query, user);
   }
 
-  @Get("patients-overview")
-  @Roles("superadmin", "admin")
-  getPatientsOverview(@CurrentUser() user: AuthUser) {
-    return this.usersAdminService.getPatientsOverview(user);
-  }
-
   @Get("export")
   @Roles("superadmin", "admin")
   async exportUsersWithClaims(
@@ -81,9 +74,4 @@ export class UsersAdminController {
     return this.usersAdminService.findById(id, user);
   }
 
-  @Delete(":id")
-  @Roles("superadmin")
-  remove(@Param("id") id: string) {
-    return this.usersAdminService.remove(id);
-  }
 }
