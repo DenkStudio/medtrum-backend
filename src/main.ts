@@ -9,6 +9,7 @@ async function bootstrap() {
     origin: [
       "http://localhost:5173",
       "http://localhost:3000",
+      "https://medtrum-admin-jj4e.vercel.app",
       process.env.FRONTEND_URL,
     ].filter((url): url is string => Boolean(url)),
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
