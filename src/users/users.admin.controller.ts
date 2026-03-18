@@ -28,7 +28,7 @@ export class UsersAdminController {
   ) {}
 
   @Post()
-  @Roles("superadmin", "admin")
+  @Roles("superadmin", "admin", "educator", "super_educator")
   createOrUpdate(
     @Body() dto: CreateUserDto & { id?: string },
     @CurrentUser() user: AuthUser
