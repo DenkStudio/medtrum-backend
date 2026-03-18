@@ -62,7 +62,7 @@ export class HardwareAdminService {
         userId: dto.userId,
         organizationId,
         assignedDate: new Date(),
-        saleDate: dto.saleDate ? new Date(dto.saleDate) : undefined,
+        saleDate: dto.saleDate ? new Date(dto.saleDate + "T12:00:00") : undefined,
         placementDate: dto.placementDate ? new Date(dto.placementDate) : undefined,
       },
     });
@@ -110,7 +110,7 @@ export class HardwareAdminService {
             userId: dto.userId,
             organizationId,
             assignedDate: new Date(),
-            saleDate: dto.saleDate ? new Date(dto.saleDate) : undefined,
+            saleDate: dto.saleDate ? new Date(dto.saleDate + "T12:00:00") : undefined,
           },
         });
 
@@ -176,7 +176,7 @@ export class HardwareAdminService {
         ...(dto.userId !== undefined && { userId: dto.userId }),
         ...(dto.organizationId !== undefined && { organizationId: dto.organizationId }),
         ...(dto.placementDate !== undefined && { placementDate: new Date(dto.placementDate) }),
-        ...(dto.saleDate !== undefined && { saleDate: new Date(dto.saleDate) }),
+        ...(dto.saleDate !== undefined && { saleDate: new Date(dto.saleDate + "T12:00:00") }),
       },
       include: {
         user: {
@@ -737,7 +737,7 @@ export class HardwareAdminService {
       data: {
         ...(dto.serialNumber !== undefined && { serialNumber: dto.serialNumber }),
         ...(dto.lotNumber !== undefined && { lotNumber: dto.lotNumber }),
-        ...(dto.saleDate !== undefined && { saleDate: new Date(dto.saleDate) }),
+        ...(dto.saleDate !== undefined && { saleDate: new Date(dto.saleDate + "T12:00:00") }),
       },
       include: {
         user: {
