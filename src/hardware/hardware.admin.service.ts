@@ -681,6 +681,13 @@ export class HardwareAdminService {
               id: true,
               fullName: true,
               email: true,
+              dni: true,
+              educator: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
