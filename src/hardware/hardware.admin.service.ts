@@ -7,6 +7,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateHardwareSupplyDto } from "./dto/create-hardware-supply.dto";
 import { UpdateHardwareSupplyDto } from "./dto/update-hardware-supply.dto";
+import { UpdateHardwareLogisticaDto } from "./dto/update-hardware-logistica.dto";
 import { HardwareActivityType, HardwareStatus, SupplyType } from "@prisma/client";
 import {
   AuthUser,
@@ -175,6 +176,7 @@ export class HardwareAdminService {
         ...(dto.userId !== undefined && { userId: dto.userId }),
         ...(dto.organizationId !== undefined && { organizationId: dto.organizationId }),
         ...(dto.placementDate !== undefined && { placementDate: new Date(dto.placementDate) }),
+        ...(dto.saleDate !== undefined && { saleDate: new Date(dto.saleDate) }),
       },
       include: {
         user: {
@@ -645,5 +647,107 @@ export class HardwareAdminService {
         },
       ],
     };
+  }
+
+  async findIncomplete(query: QueryOptionsDto, user: AuthUser) {
+    const { page = 1, limit = 20, search, from, to } = query;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.HardwareSupplyWhereInput = {
+      ...buildOrgFilter(user),
+      OR: [
+        { serialNumber: null },
+        { lotNumber: null },
+        { saleDate: null },
+      ],
+    };
+
+    const dateFilter = buildDateRangeFilter(from, to);
+    if (dateFilter) where.createdAt = dateFilter;
+
+    if (search) {
+      where.user = {
+        fullName: { contains: search, mode: "insensitive" },
+      };
+    }
+
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.hardwareSupply.count({ where }),
+      this.prisma.hardwareSupply.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      data,
+    };
+  }
+
+  async updateLogisticaFields(
+    id: string,
+    dto: UpdateHardwareLogisticaDto,
+    user: AuthUser,
+  ) {
+    const hardware = await this.prisma.hardwareSupply.findUnique({
+      where: { id },
+    });
+
+    if (!hardware) throw new NotFoundException("Hardware supply not found");
+
+    if (!canAccessOrg(user, hardware.organizationId)) {
+      throw new ForbiddenException(
+        "Cannot access hardware from different organization",
+      );
+    }
+
+    if (dto.serialNumber) {
+      const duplicate = await this.prisma.hardwareSupply.findFirst({
+        where: {
+          serialNumber: dto.serialNumber,
+          type: hardware.type,
+          id: { not: id },
+        },
+      });
+
+      if (duplicate) {
+        throw new ConflictException(
+          `Hardware of type ${hardware.type} with serial number ${dto.serialNumber} already exists`,
+        );
+      }
+    }
+
+    return this.prisma.hardwareSupply.update({
+      where: { id },
+      data: {
+        ...(dto.serialNumber !== undefined && { serialNumber: dto.serialNumber }),
+        ...(dto.lotNumber !== undefined && { lotNumber: dto.lotNumber }),
+        ...(dto.saleDate !== undefined && { saleDate: new Date(dto.saleDate) }),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
+    });
   }
 }

@@ -9,4 +9,5 @@ export class UpdateHardwareSupplyDto {
   @IsOptional() @IsUUID() userId?: string;
   @IsOptional() @IsUUID() organizationId?: string;
   @IsOptional() @IsDateString() placementDate?: string;
+  @IsOptional() @IsDateString() saleDate?: string;
 }
