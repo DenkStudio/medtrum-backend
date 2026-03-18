@@ -64,6 +64,11 @@ export class EducatorsAdminService {
     const educator = await this.prisma.educator.findUnique({
       where: { id },
       include: {
+        user: {
+          select: {
+            email: true,
+          },
+        },
         patients: {
           where: { role: "patient" },
           select: {
