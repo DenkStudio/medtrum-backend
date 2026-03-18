@@ -195,6 +195,7 @@ model User {
   province          String?
   localidadId       String?   @map("localidad_id")
   familyContactName         String?   @map("family_contact_name")
+  familyContactEmail        String?   @map("family_contact_email")
   familyContactPhone        String?   @map("family_contact_phone")
   familyContactRelationship String?   @map("family_contact_relationship")
   doctorId          String?   @map("doctor_id")

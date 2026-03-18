@@ -11,6 +11,10 @@ class RefreshTokenDto {
   @IsString() refreshToken!: string;
 }
 
+class ResetPasswordDto {
+  @IsEmail() email!: string;
+}
+
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -23,5 +27,10 @@ export class AuthController {
   @Post("refresh")
   refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshToken(dto.refreshToken);
+  }
+
+  @Post("reset-password")
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.email);
   }
 }

@@ -57,8 +57,10 @@ export class UsersAdminService {
       throw new BadRequestException(error.message);
     }
 
+    // Send invitation to family contact email if available, otherwise to patient
+    const inviteEmail = user.familyContactEmail || user.email;
     this.mail.sendInvitationEmail({
-      email: user.email,
+      email: inviteEmail,
       name: user.fullName ?? undefined,
       actionLink: data.properties.action_link,
     });
@@ -88,8 +90,10 @@ export class UsersAdminService {
       }
       supabaseData = data;
 
+      // Send invitation to family contact email if minor has one, otherwise to patient
+      const inviteEmail = dto.familyContactEmail || dto.email;
       this.mail.sendInvitationEmail({
-        email: dto.email,
+        email: inviteEmail,
         name: dto.fullName,
         actionLink: data.properties.action_link,
       });
@@ -141,6 +145,7 @@ export class UsersAdminService {
         educatorId: dto.educator,
         province: dto.province,
         familyContactName: dto.familyContactName,
+        familyContactEmail: dto.familyContactEmail,
         familyContactPhone: dto.familyContactPhone,
         familyContactRelationship: dto.familyContactRelationship,
         localidadId: dto.localidad,
@@ -419,6 +424,10 @@ export class UsersAdminService {
 
     if (dto.familyContactName !== undefined) {
       updateData.familyContactName = dto.familyContactName;
+    }
+
+    if (dto.familyContactEmail !== undefined) {
+      updateData.familyContactEmail = dto.familyContactEmail;
     }
 
     if (dto.familyContactPhone !== undefined) {

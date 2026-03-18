@@ -1,12 +1,16 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable, UnauthorizedException, BadRequestException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { SupabaseService } from "../supabase/supabase.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { MailService } from "../mail/mail.service";
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly supabase: SupabaseService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -47,5 +51,30 @@ export class AuthService {
       access_token: data.session.access_token,
       refresh_token: data.session.refresh_token,
     };
+  }
+
+  async resetPassword(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    // Always return success to prevent email enumeration
+    if (!user) return { message: "Si el email existe, recibirás un enlace para restablecer tu contraseña." };
+
+    const redirectTo = `${this.config.get("FRONTEND_URL")}/update-password`;
+
+    const { data, error } = await this.supabase.adminClient.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo },
+    });
+
+    if (error) throw new BadRequestException(error.message);
+
+    this.mail.sendPasswordResetEmail({
+      email,
+      name: user.fullName ?? undefined,
+      actionLink: data.properties.action_link,
+    });
+
+    return { message: "Si el email existe, recibirás un enlace para restablecer tu contraseña." };
   }
 }

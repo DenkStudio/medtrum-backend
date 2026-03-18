@@ -10,6 +10,12 @@ interface ReimbursementEmailParams {
   shippingDate?: string;
 }
 
+interface PasswordResetEmailParams {
+  email: string;
+  name?: string;
+  actionLink: string;
+}
+
 interface InvitationEmailParams {
   email: string;
   name?: string;
@@ -137,6 +143,61 @@ export class MailService {
       this.logger.log(`Invitation email sent to ${email}`);
     } catch (error: any) {
       this.logger.error(`Failed to send invitation email to ${email}: ${error?.message}`);
+    }
+  }
+
+  async sendPasswordResetEmail(params: PasswordResetEmailParams) {
+    const { email, name, actionLink } = params;
+
+    const html = this.wrapHtml("Recuperar contraseña", `
+      <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #0D2B22; line-height: 1.3;">
+        ¡Hola${name ? `, ${name}` : ""}!
+      </h1>
+      <p style="margin: 0 0 28px; font-size: 15px; color: #4A6B5E; line-height: 1.8;">
+        Recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong style="color: #0D4A3A;">Medtrum</strong>. Hacé click en el botón de abajo para crear una nueva contraseña.
+      </p>
+
+      <!-- Info card -->
+      <div style="background: #F4FAF7; border-radius: 10px; border: 1px solid #C8E6D8; padding: 20px 24px; margin-bottom: 32px;">
+        <table cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="vertical-align: top; padding-right: 14px; font-size: 16px; color: #1A6B52; font-weight: 700;">&#9432;</td>
+            <td style="font-size: 13px; color: #2D6050; line-height: 1.6;">
+              Este enlace es de uso único y expira en <strong>48 horas</strong>. Si no lo usás antes de esa fecha, deberás solicitar uno nuevo.
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align: center; margin-bottom: 36px;">
+        <a href="${actionLink}" style="display: inline-block; background: #0D4A3A; color: white; padding: 16px 48px; border-radius: 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px; font-family: 'Trebuchet MS', Arial, sans-serif;">
+          Restablecer mi contraseña
+        </a>
+      </div>
+
+      <div style="border-top: 1px solid #E8F0ED; margin-bottom: 24px;"></div>
+
+      <p style="font-size: 13px; color: #90A89E; line-height: 1.7; margin: 0;">
+        Si no solicitaste restablecer tu contraseña, podés ignorar este mensaje. Tu contraseña actual seguirá siendo la misma.
+      </p>
+    `);
+
+    if (!this.resend) {
+      this.logger.warn(`Email skipped (no API key): password reset to ${email}`);
+      return;
+    }
+
+    try {
+      await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: "Restablecer contraseña - Medtrum",
+        html,
+      });
+      this.logger.log(`Password reset email sent to ${email}`);
+    } catch (error: any) {
+      this.logger.error(`Failed to send password reset email to ${email}: ${error?.message}`);
     }
   }
 

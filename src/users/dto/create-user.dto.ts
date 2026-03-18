@@ -38,6 +38,7 @@ export class CreateUserDto {
   @IsOptional() @IsString() province?: string;
   @IsOptional() @IsUUID() localidad?: string;
   @IsOptional() @IsString() familyContactName?: string;
+  @IsOptional() @IsEmail() familyContactEmail?: string;
   @IsOptional() @IsString() familyContactPhone?: string;
   @IsOptional() @IsString() familyContactRelationship?: string;
 

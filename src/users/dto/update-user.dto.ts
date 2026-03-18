@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsUUID,
 } from "class-validator";
+
 import { UserRole } from "@prisma/client";
 
 export class UpdateUserDto {
@@ -26,6 +27,7 @@ export class UpdateUserDto {
   @IsOptional() @IsString() province?: string;
   @IsOptional() @IsUUID() localidad?: string;
   @IsOptional() @IsString() familyContactName?: string;
+  @IsOptional() @IsEmail() familyContactEmail?: string;
   @IsOptional() @IsString() familyContactPhone?: string;
   @IsOptional() @IsString() familyContactRelationship?: string;
   @IsOptional() @IsNumber() balanceDaysSensor?: number;
