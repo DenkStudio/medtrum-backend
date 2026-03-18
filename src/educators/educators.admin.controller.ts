@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -28,15 +29,20 @@ export class EducatorsAdminController {
   }
 
   @Get()
-  @Roles("admin", "superadmin")
+  @Roles("admin", "superadmin", "super_educator")
   findAll(@Query() query: QueryOptionsDto, @CurrentUser() user: AuthUser) {
     return this.educatorsService.findAll(query, user);
   }
 
   @Get(":id")
-  @Roles("admin", "superadmin")
+  @Roles("admin", "superadmin", "super_educator")
   findById(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.educatorsService.findById(id, user);
   }
 
+  @Delete(":id")
+  @Roles("superadmin", "super_educator")
+  delete(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.educatorsService.delete(id, user);
+  }
 }
