@@ -338,7 +338,7 @@ export class MailService {
 
     const dateRow = formattedDate
       ? `<tr>
-          <td style="padding: 8px 12px; color: #4A6B5E; font-size: 14px; border-bottom: 1px solid #E8F0ED;">Fecha de envío</td>
+          <td style="padding: 8px 12px; color: #4A6B5E; font-size: 14px; border-bottom: 1px solid #E8F0ED;">Fecha programada</td>
           <td style="padding: 8px 12px; font-size: 14px; color: #0D2B22; border-bottom: 1px solid #E8F0ED;">${formattedDate}</td>
         </tr>`
       : "";
@@ -348,7 +348,7 @@ export class MailService {
         ¡Hola${patientName ? `, ${patientName}` : ""}!
       </h1>
       <p style="margin: 0 0 28px; font-size: 15px; color: #4A6B5E; line-height: 1.8;">
-        Nos comunicamos para informarte que tu reintegro ha sido procesado y el envío está en camino.
+        Nos comunicamos para informarte que tu reintegro ha sido procesado y el envío fue programado.
       </p>
 
       <!-- Detail card -->
@@ -384,7 +384,7 @@ export class MailService {
       await this.resend.emails.send({
         from: this.fromEmail,
         to: patientEmail,
-        subject: "Tu reintegro ha sido enviado - Medtrum",
+        subject: "Tu reintegro fue programado - Medtrum",
         html,
       });
       this.logger.log(`Reimbursement email sent to ${patientEmail}`);
