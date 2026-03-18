@@ -15,12 +15,14 @@ import { SupabaseModule } from "./supabase/supabase.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
 import { CalendarModule } from "./calendar/calendar.module";
 import { LocalidadesModule } from "./localidades/localidades.module";
+import { MailModule } from "./mail/mail.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     SupabaseModule,
+    MailModule,
     AuthModule,
     UsersModule,
     OrganizationsModule,

@@ -6,6 +6,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateClaimDto } from "./dto/create-claim.dto";
 import { UsersService } from "../users/users.service";
+import { DeliveriesService } from "../deliveries/deliveries.service";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import {
   PaginatedResult,
@@ -21,12 +22,20 @@ import { parseDate } from "../common/helpers/date.helper";
 export class ClaimsService {
   constructor(
     private prisma: PrismaService,
-    private readonly users: UsersService
+    private readonly users: UsersService,
+    private readonly deliveries: DeliveriesService,
   ) {}
 
   async create(dto: CreateClaimDto, userId: string) {
     if (!userId) {
       throw new BadRequestException("userId is required");
+    }
+
+    const hasUnreceived = await this.deliveries.hasUnreceivedReimbursements(userId);
+    if (hasUnreceived) {
+      throw new BadRequestException(
+        "Tenés entregas de reembolso pendientes de confirmar. Confirmá la recepción antes de crear un nuevo reclamo.",
+      );
     }
 
     if (dto.errorCode && dto.claimCategory) {

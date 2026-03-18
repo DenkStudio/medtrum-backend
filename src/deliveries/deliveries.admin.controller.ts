@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -40,6 +41,22 @@ export class DeliveriesAdminController {
     @CurrentUser() user: AuthUser
   ) {
     return this.service.findByUserId(userId, user);
+  }
+
+  @Patch(":id/observations")
+  @Roles("admin", "superadmin", "educator", "super_educator", "logistica")
+  addObservation(
+    @Param("id") id: string,
+    @Body() body: { text: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.addObservation(id, body.text, user);
+  }
+
+  @Get(":id/photo-url")
+  @Roles("admin", "superadmin", "logistica")
+  getPhotoUrl(@Param("id") id: string) {
+    return this.service.getDeliveryPhotoSignedUrl(id);
   }
 
   @Get(":id")

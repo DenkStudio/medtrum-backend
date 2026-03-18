@@ -40,18 +40,29 @@ export class LocalidadesAdminService {
   }
 
   async findByProvince(province: string, user: AuthUser) {
+    const orgFilter = buildOrgFilter(user);
+    const orgId = orgFilter.organizationId;
+
     return this.prisma.localidad.findMany({
       where: {
         province,
-        ...buildOrgFilter(user),
+        // Include shared (null org) + org-scoped localidades
+        ...(orgId
+          ? { OR: [{ organizationId: null }, { organizationId: orgId }] }
+          : {}),
       },
       orderBy: { name: "asc" },
     });
   }
 
   async findAll(user: AuthUser) {
+    const orgFilter = buildOrgFilter(user);
+    const orgId = orgFilter.organizationId;
+
     return this.prisma.localidad.findMany({
-      where: buildOrgFilter(user),
+      where: orgId
+        ? { OR: [{ organizationId: null }, { organizationId: orgId }] }
+        : {},
       orderBy: { name: "asc" },
     });
   }

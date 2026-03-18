@@ -13,8 +13,14 @@ import {
   buildOrgFilter,
 } from "../common/helpers/organization-filter.helper";
 import { DeliveriesAdminService } from "../deliveries/deliveries.admin.service";
+import { MailService } from "../mail/mail.service";
+import { SupabaseService } from "../supabase/supabase.service";
 import { ClaimsChartQueryDto } from "./dto/claims-chart-query.dto";
 import { parseDate } from "../common/helpers/date.helper";
+import {
+  buildObservation,
+  appendClaimObservation,
+} from "../common/helpers/observation.helper";
 import * as ExcelJS from "exceljs";
 
 const SUPPLY_LABELS: Record<string, string> = {
@@ -33,7 +39,9 @@ export class ClaimsAdminService {
   constructor(
     private prisma: PrismaService,
     private readonly users: UsersService,
-    private readonly deliveries: DeliveriesAdminService
+    private readonly deliveries: DeliveriesAdminService,
+    private readonly mail: MailService,
+    private readonly supabase: SupabaseService,
   ) {}
 
   async findAll(query: QueryOptionsDto, user: AuthUser): Promise<PaginatedResult<any>> {
@@ -44,14 +52,20 @@ export class ClaimsAdminService {
 
     const dateFilter = buildDateRangeFilter(from, to);
     if (dateFilter) where.createdAt = dateFilter;
-    if (status) {
+
+    if (user.role === "logistica") {
+      const allowed: ClaimStatus[] = ["approved", "reimbursed"];
+      if (status && allowed.includes(status as ClaimStatus)) {
+        where.status = status as ClaimStatus;
+      } else {
+        where.status = { in: allowed };
+      }
+    } else if (status) {
       where.status = status as ClaimStatus;
     }
 
     const userFilter: Prisma.UserWhereInput = {};
-    if ((user.role === "educator" || user.role === "super_educator") && user.educatorId) {
-      userFilter.educatorId = user.educatorId;
-    } else if (orgFilter.organizationId) {
+    if (orgFilter.organizationId) {
       userFilter.organizationId = orgFilter.organizationId;
     }
     if (search) {
@@ -65,7 +79,7 @@ export class ClaimsAdminService {
       this.prisma.claim.count({ where }),
       this.prisma.claim.findMany({
         where,
-        include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } } },
+        include: { user: { include: { educator: { select: { id: true, name: true } } } }, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } }, reimbursedBy: { select: { id: true, fullName: true, email: true } } },
         orderBy: buildOrderBy(sort),
         skip: (page - 1) * limit,
         take: limit,
@@ -94,9 +108,7 @@ export class ClaimsAdminService {
     }
 
     const userFilter: Prisma.UserWhereInput = {};
-    if ((user.role === "educator" || user.role === "super_educator") && user.educatorId) {
-      userFilter.educatorId = user.educatorId;
-    } else if (orgFilter.organizationId) {
+    if (orgFilter.organizationId) {
       userFilter.organizationId = orgFilter.organizationId;
     }
     if (search) {
@@ -113,8 +125,13 @@ export class ClaimsAdminService {
           include: {
             organization: true,
             hardwareSupplies: true,
+            healthcare: true,
+            doctor: true,
+            educator: true,
+            localidad: true,
           },
         },
+        deliveries: true,
       },
       orderBy: buildOrderBy(sort),
     });
@@ -140,23 +157,51 @@ export class ClaimsAdminService {
       PARCHE_ERROR_CEBADO: "Error de cebado",
       PARCHE_DESACTIVADO: "Desactivado",
       PARCHE_OTROS: "Otros (parche)",
-      TRANSMISOR_CONECTORES_OXIDADOS: "Conectores oxidados",
+      // Transmisor
+      TRANSMISOR_CONECTORES_OXIDADOS: "Conectores oxidados (transmisor)",
+      TRANSMISOR_LUZ_VERDE_NO_PARPADEA: "Luz verde no parpadea",
+      TRANSMISOR_PROBLEMAS_BATERIA: "Problemas de batería (transmisor)",
+      TRANSMISOR_ROTURA: "Rotura (transmisor)",
+      TRANSMISOR_OTROS: "Otros (transmisor)",
+      // Base Bomba
+      BASE_BOMBA_CONECTORES_OXIDADOS: "Conectores oxidados (base bomba)",
+      BASE_BOMBA_NO_ENCASTRA: "No encastra",
+      BASE_BOMBA_NO_HACE_PITIDOS: "No hace pitidos",
+      BASE_BOMBA_ROTURA: "Rotura (base bomba)",
+      BASE_BOMBA_OTROS: "Otros (base bomba)",
+      // Cable Transmisor
+      CABLE_NO_CARGA: "No carga (cable)",
+      CABLE_PIN_DOBLADO: "Pin doblado",
+      CABLE_OTROS: "Otros (cable)",
+      // PDM
+      PDM_NO_CARGA_NO_ENCIENDE: "No carga / No enciende (PDM)",
+      PDM_SE_APAGA_SOLO: "Se apaga solo (PDM)",
+      PDM_NO_CARGA: "No carga (PDM)",
+      PDM_ROTURA: "Rotura (PDM)",
+      PDM_OTROS: "Otros (PDM)",
     };
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Reclamos");
 
     sheet.columns = [
+      { header: "Distribuidor", key: "distributor", width: 20 },
       { header: "Nombre de paciente", key: "patientName", width: 30 },
       { header: "DNI", key: "dni", width: 16 },
+      { header: "Obra social", key: "obraSocial", width: 25 },
+      { header: "Médico", key: "doctor", width: 25 },
+      { header: "Provincia", key: "province", width: 20 },
+      { header: "Localidad", key: "localidad", width: 20 },
       { header: "Insumo", key: "supply", width: 20 },
+      { header: "Fecha de venta", key: "saleDate", width: 18 },
       { header: "Lote", key: "lotNumber", width: 18 },
       { header: "Serie", key: "serialNumber", width: 18 },
       { header: "Fecha de colocación", key: "colocationDate", width: 18 },
       { header: "Fecha de Falla", key: "failureDate", width: 18 },
       { header: "Días no utilizados", key: "daysClaimed", width: 20 },
       { header: "Motivo de Falla", key: "errorCode", width: 30 },
-      { header: "Distribuidor", key: "distributor", width: 20 },
+      { header: "Cantidades de reposiciones", key: "reimbursementQty", width: 28 },
+      { header: "Educadora", key: "educator", width: 25 },
     ];
 
     sheet.getRow(1).font = { bold: true };
@@ -164,28 +209,41 @@ export class ClaimsAdminService {
     for (const claim of claims) {
       let lotNumber = claim.lotNumber;
       let serialNumber: string | null = null;
+      let saleDate: Date | null = null;
 
-      if ((!lotNumber || !serialNumber) && claim.supply) {
+      if (claim.supply) {
         const hw = claim.user.hardwareSupplies?.find(
           (h) => h.type === claim.supply,
         );
         if (hw) {
           if (!lotNumber) lotNumber = hw.lotNumber;
           if (!serialNumber) serialNumber = hw.serialNumber;
+          if (hw.saleDate) saleDate = hw.saleDate;
         }
       }
 
+      const reimbursementQty = claim.deliveries
+        ?.filter((d) => d.type === "claim_reimbursement")
+        .reduce((sum, d) => sum + (d.quantity || 0), 0) || 0;
+
       sheet.addRow({
+        distributor: claim.user.organization?.name ?? "-",
         patientName: claim.user.fullName ?? "-",
         dni: claim.user.dni ?? "-",
+        obraSocial: (claim.user as any).healthcare?.tradeName ?? "-",
+        doctor: (claim.user as any).doctor?.name ?? "-",
+        province: claim.user.province ?? "-",
+        localidad: (claim.user as any).localidad?.name ?? "-",
         supply: claim.supply ? (SUPPLY_LABELS[claim.supply] ?? claim.supply) : "-",
+        saleDate: formatDate(saleDate),
         lotNumber: lotNumber ?? "-",
         serialNumber: serialNumber ?? "-",
         colocationDate: formatDate(claim.colocationDate),
         failureDate: formatDate(claim.failureDate),
         daysClaimed: claim.daysClaimed ?? "-",
         errorCode: claim.errorCode ? (errorCodeLabels[claim.errorCode] ?? claim.errorCode) : "-",
-        distributor: claim.user.organization?.name ?? "-",
+        reimbursementQty: reimbursementQty > 0 ? reimbursementQty : "-",
+        educator: (claim.user as any).educator?.name ?? "-",
       });
     }
 
@@ -196,26 +254,15 @@ export class ClaimsAdminService {
   async findOne(claimId: string, user?: AuthUser) {
     const claim = await this.prisma.claim.findUnique({
       where: { id: claimId },
-      include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } } },
+      include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } }, reimbursedBy: { select: { id: true, fullName: true, email: true } } },
     });
-    if (claim && (user?.role === "educator" || user?.role === "super_educator") && user.educatorId) {
-      if (claim.user.educatorId !== user.educatorId) {
-        throw new ForbiddenException("No tiene acceso a este reclamo");
-      }
-    }
     return claim;
   }
 
   async findByUserId(userId: string, user?: AuthUser) {
-    if ((user?.role === "educator" || user?.role === "super_educator") && user.educatorId) {
-      const patient = await this.prisma.user.findUnique({ where: { id: userId } });
-      if (!patient || patient.educatorId !== user.educatorId) {
-        throw new ForbiddenException("No tiene acceso a los reclamos de este usuario");
-      }
-    }
     return this.prisma.claim.findMany({
       where: { userId },
-      include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } } },
+      include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } }, reimbursedBy: { select: { id: true, fullName: true, email: true } } },
       orderBy: { createdAt: "desc" },
     });
   }
@@ -223,24 +270,14 @@ export class ClaimsAdminService {
   async setStatus(
     id: string,
     status: ClaimStatus,
-    qty: number,
-    daysReimbursed?: number,
     resolutionMessage?: string,
     user?: AuthUser,
-    returnedLots?: { lotNumber: string; qty: number }[]
   ) {
-    const claim = await this.prisma.claim.findUnique({ where: { id } });
+    const claim = await this.prisma.claim.findUnique({
+      where: { id },
+      include: { deliveries: true },
+    });
     if (!claim) throw new NotFoundException("Claim not found");
-
-    // Validate returnedLots sum matches qty
-    if (returnedLots?.length) {
-      const lotsTotal = returnedLots.reduce((sum, lot) => sum + lot.qty, 0);
-      if (lotsTotal !== qty) {
-        throw new BadRequestException(
-          `La suma de cantidades por lote (${lotsTotal}) no coincide con la cantidad total (${qty})`
-        );
-      }
-    }
 
     const updateData: Prisma.ClaimUpdateInput = {
       status,
@@ -250,76 +287,6 @@ export class ClaimsAdminService {
 
     if (resolutionMessage !== undefined) {
       updateData.resolutionMessage = resolutionMessage;
-    }
-
-    if (returnedLots?.length) {
-      updateData.returnedLots = returnedLots;
-    }
-
-    if (
-      status === "approved" &&
-      (claim.supply === SupplyType.SENSOR ||
-        claim.supply === SupplyType.PARCHE_200U ||
-        claim.supply === SupplyType.PARCHE_300U)
-    ) {
-      // Create delivery records for the reimbursement
-      if (user) {
-        if (returnedLots?.length) {
-          // Create one delivery per lot, all linked to this claim
-          for (const lot of returnedLots) {
-            await this.prisma.delivery.create({
-              data: {
-                type: "claim_reimbursement",
-                userId: claim.userId,
-                organizationId: user.orgId ?? null,
-                claimId: claim.id,
-                quantity: lot.qty,
-                daysReimbursed: daysReimbursed
-                  ? Math.round((lot.qty / qty) * daysReimbursed)
-                  : undefined,
-                itemName: claim.supply ?? undefined,
-                lotNumber: lot.lotNumber,
-                date: new Date(),
-                assignedById: user.userId,
-                observations: resolutionMessage,
-              },
-            });
-          }
-
-          // Update balance days with the full daysReimbursed
-          if (daysReimbursed && claim.supply) {
-            await this.users.updateBalanceDays(
-              claim.userId,
-              daysReimbursed,
-              claim.supply
-            );
-          }
-        } else {
-          // No lots specified — single delivery as before
-          await this.deliveries.create(
-            {
-              userId: claim.userId,
-              claimId: claim.id,
-              quantity: qty,
-              daysReimbursed,
-              itemName: claim.supply ?? undefined,
-              observations: resolutionMessage,
-            },
-            user.userId,
-            user
-          );
-        }
-
-        // Save the user's balance after the update
-        const updatedPatient = await this.prisma.user.findUnique({
-          where: { id: claim.userId },
-        });
-        if (updatedPatient) {
-          updateData.balanceAfterResolution = claim.supply === SupplyType.SENSOR
-            ? updatedPatient.balanceDaysSensor ?? 0
-            : updatedPatient.balanceDaysParche ?? 0;
-        }
-      }
     }
 
     if (
@@ -335,14 +302,252 @@ export class ClaimsAdminService {
       );
     }
 
+    if (status === "annulled") {
+      if (claim.status !== "approved" && claim.status !== "reimbursed") {
+        throw new BadRequestException(
+          "Solo se pueden anular reclamos aprobados o reintegrados"
+        );
+      }
+
+      if (
+        claim.supply === SupplyType.SENSOR ||
+        claim.supply === SupplyType.PARCHE_200U ||
+        claim.supply === SupplyType.PARCHE_300U
+      ) {
+        const totalDaysReimbursed = claim.deliveries.reduce(
+          (sum, d) => sum + (d.daysReimbursed ?? 0),
+          0,
+        );
+
+        const balanceDelta = (claim.daysClaimed ?? 0) - totalDaysReimbursed;
+        if (balanceDelta !== 0) {
+          await this.users.updateBalanceDays(
+            claim.userId,
+            balanceDelta,
+            claim.supply,
+          );
+        }
+      }
+
+      await this.prisma.delivery.deleteMany({
+        where: { claimId: claim.id },
+      });
+
+      updateData.balanceAfterResolution = null;
+    }
+
     await this.prisma.claim.update({
       where: { id },
       data: updateData,
     });
 
+    // Auto-log system observation for status change
+    const statusLabels: Record<string, string> = {
+      approved: "Reclamo aprobado",
+      rejected: "Reclamo rechazado",
+      annulled: "Reclamo anulado",
+    };
+    const label = statusLabels[status] || `Estado cambiado a ${status}`;
+    const obsText = resolutionMessage
+      ? `${label}: ${resolutionMessage}`
+      : label;
+    const authorName = user
+      ? (await this.prisma.user.findUnique({
+          where: { id: user.userId },
+          select: { fullName: true },
+        }))?.fullName || "Sistema"
+      : "Sistema";
+
+    await appendClaimObservation(
+      this.prisma,
+      id,
+      buildObservation(obsText, user?.userId || "", authorName, "system", {
+        action: status,
+      }),
+    );
+
     return this.prisma.claim.findUnique({
       where: { id },
-      include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } } },
+      include: {
+        user: true,
+        deliveries: true,
+        resolvedBy: { select: { id: true, fullName: true, email: true } },
+        reimbursedBy: { select: { id: true, fullName: true, email: true } },
+      },
+    });
+  }
+
+  async reimburse(
+    id: string,
+    qty: number,
+    daysReimbursed?: number,
+    resolutionMessage?: string,
+    user?: AuthUser,
+    returnedLots?: { lotNumber: string; qty: number }[],
+    extra?: {
+      reimbursementPhotoUrl?: string;
+      trackingLink?: string;
+      shippingDate?: string;
+      deliveryPhotoUrl?: string;
+    },
+  ) {
+    const claim = await this.prisma.claim.findUnique({
+      where: { id },
+      include: { deliveries: true, user: true },
+    });
+    if (!claim) throw new NotFoundException("Claim not found");
+
+    if (claim.status !== "approved") {
+      throw new BadRequestException(
+        "Solo se pueden reintegrar reclamos aprobados"
+      );
+    }
+
+    // Validate returnedLots sum matches qty
+    if (returnedLots?.length) {
+      const lotsTotal = returnedLots.reduce((sum, lot) => sum + lot.qty, 0);
+      if (lotsTotal !== qty) {
+        throw new BadRequestException(
+          `La suma de cantidades por lote (${lotsTotal}) no coincide con la cantidad total (${qty})`
+        );
+      }
+    }
+
+    const updateData: Prisma.ClaimUpdateInput = {
+      status: "reimbursed",
+      reimbursedAt: new Date(),
+      ...(user && { reimbursedBy: { connect: { id: user.userId } } }),
+    };
+
+    if (resolutionMessage !== undefined) {
+      updateData.resolutionMessage = resolutionMessage;
+    }
+
+    if (returnedLots?.length) {
+      updateData.returnedLots = returnedLots;
+    }
+
+    if (extra?.reimbursementPhotoUrl) {
+      updateData.reimbursementPhotoUrl = extra.reimbursementPhotoUrl;
+    }
+    if (extra?.trackingLink) {
+      updateData.trackingLink = extra.trackingLink;
+    }
+    if (extra?.shippingDate) {
+      updateData.shippingDate = new Date(extra.shippingDate);
+    }
+
+    if (
+      claim.supply === SupplyType.SENSOR ||
+      claim.supply === SupplyType.PARCHE_200U ||
+      claim.supply === SupplyType.PARCHE_300U
+    ) {
+      if (user) {
+        if (returnedLots?.length) {
+          for (const lot of returnedLots) {
+            const deliveryObs = resolutionMessage
+              ? [buildObservation(resolutionMessage, user.userId, "Sistema", "system", { action: "reimbursed" })]
+              : [];
+            await this.prisma.delivery.create({
+              data: {
+                type: "claim_reimbursement",
+                userId: claim.userId,
+                organizationId: user.orgId ?? null,
+                claimId: claim.id,
+                quantity: lot.qty,
+                daysReimbursed: daysReimbursed
+                  ? Math.round((lot.qty / qty) * daysReimbursed)
+                  : undefined,
+                itemName: claim.supply ?? undefined,
+                lotNumber: lot.lotNumber,
+                date: new Date(),
+                assignedById: user.userId,
+                observations: deliveryObs as any,
+                photoUrl: extra?.deliveryPhotoUrl,
+              },
+            });
+          }
+
+          if (daysReimbursed && claim.supply) {
+            await this.users.updateBalanceDays(
+              claim.userId,
+              daysReimbursed,
+              claim.supply
+            );
+          }
+        } else {
+          await this.deliveries.create(
+            {
+              userId: claim.userId,
+              claimId: claim.id,
+              quantity: qty,
+              daysReimbursed,
+              itemName: claim.supply ?? undefined,
+              observations: resolutionMessage,
+              photoUrl: extra?.deliveryPhotoUrl,
+            },
+            user.userId,
+            user
+          );
+        }
+
+        const updatedPatient = await this.prisma.user.findUnique({
+          where: { id: claim.userId },
+        });
+        if (updatedPatient) {
+          updateData.balanceAfterResolution = claim.supply === SupplyType.SENSOR
+            ? updatedPatient.balanceDaysSensor ?? 0
+            : updatedPatient.balanceDaysParche ?? 0;
+        }
+      }
+    }
+
+    await this.prisma.claim.update({
+      where: { id },
+      data: updateData,
+    });
+
+    // Auto-log system observation for reimbursement
+    const reimburseAuthorName = user
+      ? (await this.prisma.user.findUnique({
+          where: { id: user.userId },
+          select: { fullName: true },
+        }))?.fullName || "Sistema"
+      : "Sistema";
+    const reimburseText = resolutionMessage
+      ? `Reclamo reintegrado (cantidad: ${qty}): ${resolutionMessage}`
+      : `Reclamo reintegrado (cantidad: ${qty})`;
+    await appendClaimObservation(
+      this.prisma,
+      id,
+      buildObservation(reimburseText, user?.userId || "", reimburseAuthorName, "system", {
+        action: "reimbursed",
+      }),
+    );
+
+    // Send reimbursement email to patient
+    if (claim.user?.email) {
+      const supplyLabel = claim.supply
+        ? (SUPPLY_LABELS[claim.supply] ?? claim.supply)
+        : "Insumo";
+      this.mail.sendReimbursementNotification({
+        patientEmail: claim.user.email,
+        patientName: claim.user.fullName || "",
+        supplyName: supplyLabel,
+        quantity: qty,
+        trackingLink: extra?.trackingLink,
+        shippingDate: extra?.shippingDate,
+      });
+    }
+
+    return this.prisma.claim.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        deliveries: true,
+        resolvedBy: { select: { id: true, fullName: true, email: true } },
+        reimbursedBy: { select: { id: true, fullName: true, email: true } },
+      },
     });
   }
 
@@ -352,12 +557,6 @@ export class ClaimsAdminService {
       include: { user: true },
     });
     if (!claim) throw new NotFoundException("Claim not found");
-
-    if ((user?.role === "educator" || user?.role === "super_educator") && user.educatorId) {
-      if (claim.user.educatorId !== user.educatorId) {
-        throw new ForbiddenException("No tiene acceso a este reclamo");
-      }
-    }
 
     const author = await this.prisma.user.findUnique({
       where: { id: user.userId },
@@ -370,13 +569,33 @@ export class ClaimsAdminService {
       date: new Date().toISOString(),
       authorId: user.userId,
       authorName: author?.fullName || author?.email || user.userId,
+      type: "manual",
     };
 
     return this.prisma.claim.update({
       where: { id },
       data: { observations: [...currentObservations, newObservation] },
-      include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } } },
+      include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } }, reimbursedBy: { select: { id: true, fullName: true, email: true } } },
     });
+  }
+
+  async getReimbursementPhotoSignedUrl(claimId: string) {
+    const claim = await this.prisma.claim.findUnique({
+      where: { id: claimId },
+      select: { reimbursementPhotoUrl: true },
+    });
+    if (!claim) throw new NotFoundException("Claim not found");
+    if (!claim.reimbursementPhotoUrl) return { url: null };
+
+    const { data, error } = await this.supabase.adminClient.storage
+      .from("reintegros")
+      .createSignedUrl(claim.reimbursementPhotoUrl, 3600);
+
+    if (error) {
+      throw new BadRequestException(`Error generating signed URL: ${error.message}`);
+    }
+
+    return { url: data.signedUrl };
   }
 
   private buildDateRange(startDate: string, endDate: string) {
@@ -395,9 +614,7 @@ export class ClaimsAdminService {
       createdAt: this.buildDateRange(startDate, endDate),
     };
 
-    if ((user.role === "educator" || user.role === "super_educator") && user.educatorId) {
-      where.user = { educatorId: user.educatorId };
-    } else if (orgFilter.organizationId) {
+    if (orgFilter.organizationId) {
       where.user = { organizationId: orgFilter.organizationId };
     }
 
@@ -458,9 +675,7 @@ export class ClaimsAdminService {
     const orgFilter = buildOrgFilter(user);
 
     const userWhere: Prisma.UserWhereInput = { role: "patient" };
-    if ((user.role === "educator" || user.role === "super_educator") && user.educatorId) {
-      userWhere.educatorId = user.educatorId;
-    } else if (orgFilter.organizationId) {
+    if (orgFilter.organizationId) {
       userWhere.organizationId = orgFilter.organizationId;
     }
 

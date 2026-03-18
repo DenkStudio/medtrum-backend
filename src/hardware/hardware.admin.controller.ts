@@ -35,6 +35,18 @@ export class HardwareAdminController {
     return this.service.findAll(query, user);
   }
 
+  @Get("chart/by-type")
+  @Roles("admin", "superadmin")
+  getChartByType(@CurrentUser() user: AuthUser) {
+    return this.service.getChartByType(user);
+  }
+
+  @Get("chart/errors")
+  @Roles("admin", "superadmin")
+  getErrorsByProduct(@CurrentUser() user: AuthUser) {
+    return this.service.getErrorsByProduct(user);
+  }
+
   @Get("user/:userId")
   @Roles("admin", "superadmin")
   findByUserId(@Param("userId") userId: string, @CurrentUser() user: AuthUser) {

@@ -26,17 +26,19 @@ export class HardwareAdminService {
     createdByUserId: string,
     organizationId?: string,
   ) {
-    const existing = await this.prisma.hardwareSupply.findFirst({
-      where: {
-        serialNumber: dto.serialNumber,
-        type: dto.type,
-      },
-    });
+    if (dto.serialNumber) {
+      const existing = await this.prisma.hardwareSupply.findFirst({
+        where: {
+          serialNumber: dto.serialNumber,
+          type: dto.type,
+        },
+      });
 
-    if (existing) {
-      throw new ConflictException(
-        `Hardware of type ${dto.type} with serial number ${dto.serialNumber} already exists`,
-      );
+      if (existing) {
+        throw new ConflictException(
+          `Hardware of type ${dto.type} with serial number ${dto.serialNumber} already exists`,
+        );
+      }
     }
 
     // Mark existing active hardware of the same type for this user as replaced
@@ -60,6 +62,7 @@ export class HardwareAdminService {
         organizationId,
         assignedDate: new Date(),
         saleDate: dto.saleDate ? new Date(dto.saleDate) : undefined,
+        placementDate: dto.placementDate ? new Date(dto.placementDate) : undefined,
       },
     });
 
@@ -74,12 +77,16 @@ export class HardwareAdminService {
 
     // Auto-create companion CABLE_TRANSMISOR when creating a TRANSMISOR
     if (dto.type === SupplyType.TRANSMISOR) {
-      const cableExists = await this.prisma.hardwareSupply.findFirst({
-        where: {
-          serialNumber: dto.serialNumber,
-          type: SupplyType.CABLE_TRANSMISOR,
-        },
-      });
+      let cableExists = false;
+      if (dto.serialNumber) {
+        const found = await this.prisma.hardwareSupply.findFirst({
+          where: {
+            serialNumber: dto.serialNumber,
+            type: SupplyType.CABLE_TRANSMISOR,
+          },
+        });
+        cableExists = !!found;
+      }
 
       if (!cableExists) {
         // Mark existing active CABLE_TRANSMISOR for this user as replaced

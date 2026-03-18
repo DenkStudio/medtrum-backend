@@ -27,6 +27,7 @@ import {
 } from "../common/helpers/organization-filter.helper";
 import { SupabaseService } from "../supabase/supabase.service";
 import { parseDate } from "../common/helpers/date.helper";
+import { MailService } from "../mail/mail.service";
 
 @Injectable()
 export class UsersAdminService {
@@ -35,7 +36,8 @@ export class UsersAdminService {
     @Inject(forwardRef(() => HardwareAdminService))
     private hardwareService: HardwareAdminService,
     private supabase: SupabaseService,
-    private config: ConfigService
+    private config: ConfigService,
+    private mail: MailService,
   ) {}
 
   async invite(id: string) {
@@ -45,13 +47,21 @@ export class UsersAdminService {
     const redirectTo = `${this.config.get("FRONTEND_URL")}/update-password`;
 
     const { data, error } =
-      await this.supabase.adminClient.auth.admin.inviteUserByEmail(user.email, {
-        redirectTo,
+      await this.supabase.adminClient.auth.admin.generateLink({
+        type: "invite",
+        email: user.email,
+        options: { redirectTo },
       });
 
     if (error) {
       throw new BadRequestException(error.message);
     }
+
+    this.mail.sendInvitationEmail({
+      email: user.email,
+      name: user.fullName ?? undefined,
+      actionLink: data.properties.action_link,
+    });
 
     return { message: "Invitación enviada", data };
   }
@@ -65,18 +75,24 @@ export class UsersAdminService {
     let supabaseData: any;
 
     if (dto.sendInvite) {
-      // Send invite via Supabase (no password)
       const redirectTo = `${this.config.get("FRONTEND_URL")}/update-password`;
       const { data, error } =
-        await this.supabase.adminClient.auth.admin.inviteUserByEmail(
-          dto.email,
-          { redirectTo }
-        );
+        await this.supabase.adminClient.auth.admin.generateLink({
+          type: "invite",
+          email: dto.email,
+          options: { redirectTo },
+        });
 
       if (error) {
         throw new BadRequestException(error.message);
       }
       supabaseData = data;
+
+      this.mail.sendInvitationEmail({
+        email: dto.email,
+        name: dto.fullName,
+        actionLink: data.properties.action_link,
+      });
     } else {
       // Create user with password
       const { data, error } =
@@ -92,6 +108,10 @@ export class UsersAdminService {
         );
       }
       supabaseData = data;
+
+      if (dto.role === UserRole.patient) {
+        this.mail.sendWelcomeEmail({ email: dto.email, name: dto.fullName });
+      }
     }
 
     let organizationId: string | undefined = dto.organization;
@@ -145,6 +165,7 @@ export class UsersAdminService {
                 serialNumber: hardware.serialNumber,
                 lotNumber: hardware.lotNumber,
                 saleDate: hardware.saleDate,
+                placementDate: hardware.placementDate,
                 userId: created.id,
               },
               createdBy,
@@ -181,6 +202,52 @@ export class UsersAdminService {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
+  async patientsOverview(user: AuthUser) {
+    const orgFilter = buildOrgFilter(user);
+    const where: Prisma.UserWhereInput = { ...orgFilter, role: "patient" };
+
+    const totalPatients = await this.prisma.user.count({ where });
+
+    const recentPatients = await this.prisma.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { id: true, fullName: true, createdAt: true },
+    });
+
+    // Trendline: patients created per month (last 12 months)
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+    const patientsInRange = await this.prisma.user.findMany({
+      where: { ...where, createdAt: { gte: twelveMonthsAgo } },
+      select: { createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const monthlyMap = new Map<string, number>();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      monthlyMap.set(key, 0);
+    }
+    for (const p of patientsInRange) {
+      const d = new Date(p.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (monthlyMap.has(key)) {
+        monthlyMap.set(key, monthlyMap.get(key)! + 1);
+      }
+    }
+
+    return {
+      totalPatients,
+      recentPatients,
+      trendline: {
+        labels: Array.from(monthlyMap.keys()),
+        data: Array.from(monthlyMap.values()),
+      },
+    };
+  }
+
   async findAll(query: QueryOptionsDto, user: AuthUser): Promise<PaginatedResult<any>> {
     const { page, limit, search, sort, role, healthcare, doctor, from, to } = query;
 
@@ -212,6 +279,9 @@ export class UsersAdminService {
         orderBy: buildOrderBy(sort),
         skip: (page - 1) * limit,
         take: limit,
+        include: {
+          educator: { select: { id: true, name: true } },
+        },
       }),
     ]);
 

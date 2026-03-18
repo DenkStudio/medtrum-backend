@@ -7,13 +7,14 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
-import { CreateAdminDto } from "./dto/create-admin.dto";
+import { CreateLogisticaDto } from "./dto/create-logistica.dto";
 import { UserRole } from "@prisma/client";
 import { SupabaseService } from "../supabase/supabase.service";
 import { parseDate } from "../common/helpers/date.helper";
 import {
   AuthUser,
   buildOrgFilter,
+  getCreateOrgId,
 } from "../common/helpers/organization-filter.helper";
 import { MailService } from "../mail/mail.service";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
@@ -21,7 +22,7 @@ import { buildDateRangeFilter } from "src/utils/paginate-query";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
-export class AdminsAdminService {
+export class LogisticaAdminService {
   constructor(
     private prisma: PrismaService,
     private supabase: SupabaseService,
@@ -29,7 +30,7 @@ export class AdminsAdminService {
     private mail: MailService,
   ) {}
 
-  async create(dto: CreateAdminDto, user: AuthUser) {
+  async create(dto: CreateLogisticaDto, user: AuthUser) {
     const exists = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -62,19 +63,19 @@ export class AdminsAdminService {
         });
       if (error) {
         throw new InternalServerErrorException(
-          `Failed to create Supabase user: ${error.message}`
+          `Failed to create Supabase user: ${error.message}`,
         );
       }
       supabaseData = data;
     }
 
-    const organizationId = dto.organizationId;
+    const organizationId = getCreateOrgId(user, dto.organizationId);
 
     const created = await this.prisma.user.create({
       data: {
         email: dto.email,
         supabaseId: supabaseData.user.id,
-        role: UserRole.admin,
+        role: UserRole.logistica,
         organizationId,
         fullName: dto.fullName,
         phoneNumber: dto.phoneNumber,
@@ -89,8 +90,11 @@ export class AdminsAdminService {
   }
 
   async findAll(query: QueryOptionsDto, user: AuthUser) {
-    const { from, to, search, organization } = query;
-    const where: Prisma.UserWhereInput = { role: UserRole.admin, ...buildOrgFilter(user) };
+    const { from, to, search } = query;
+    const where: Prisma.UserWhereInput = {
+      role: UserRole.logistica,
+      ...buildOrgFilter(user),
+    };
 
     const dateFilter = buildDateRangeFilter(from, to);
     if (dateFilter) where.createdAt = dateFilter;
@@ -102,10 +106,6 @@ export class AdminsAdminService {
       ];
     }
 
-    if (organization) {
-      where.organizationId = organization;
-    }
-
     return this.prisma.user.findMany({
       where,
       include: { organization: true },
@@ -114,34 +114,34 @@ export class AdminsAdminService {
   }
 
   async findById(id: string) {
-    const admin = await this.prisma.user.findUnique({
+    const logUser = await this.prisma.user.findUnique({
       where: { id },
       include: { organization: true },
     });
 
-    if (!admin || admin.role !== UserRole.admin) {
-      throw new NotFoundException("Admin not found");
+    if (!logUser || logUser.role !== UserRole.logistica) {
+      throw new NotFoundException("Logistics user not found");
     }
 
-    return admin;
+    return logUser;
   }
 
-  async update(id: string, dto: Partial<CreateAdminDto>) {
-    const admin = await this.findById(id);
+  async update(id: string, dto: Partial<CreateLogisticaDto>) {
+    const logUser = await this.findById(id);
 
-    if (admin.supabaseId && (dto.email || dto.password)) {
+    if (logUser.supabaseId && (dto.email || dto.password)) {
       const supabaseUpdate: { email?: string; password?: string } = {};
       if (dto.email) supabaseUpdate.email = dto.email;
       if (dto.password) supabaseUpdate.password = dto.password;
 
       const { error } =
         await this.supabase.adminClient.auth.admin.updateUserById(
-          admin.supabaseId,
-          supabaseUpdate
+          logUser.supabaseId,
+          supabaseUpdate,
         );
       if (error) {
         throw new InternalServerErrorException(
-          `Failed to update Supabase user: ${error.message}`
+          `Failed to update Supabase user: ${error.message}`,
         );
       }
     }
@@ -171,16 +171,16 @@ export class AdminsAdminService {
   }
 
   async remove(id: string) {
-    const admin = await this.findById(id);
+    const logUser = await this.findById(id);
 
-    if (admin.supabaseId) {
+    if (logUser.supabaseId) {
       const { error } =
         await this.supabase.adminClient.auth.admin.deleteUser(
-          admin.supabaseId
+          logUser.supabaseId,
         );
       if (error) {
         throw new InternalServerErrorException(
-          `Failed to delete Supabase user: ${error.message}`
+          `Failed to delete Supabase user: ${error.message}`,
         );
       }
     }

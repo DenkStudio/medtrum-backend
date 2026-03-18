@@ -20,12 +20,22 @@ import {
   getCreateOrgId,
 } from "../common/helpers/organization-filter.helper";
 import { parseDate } from "../common/helpers/date.helper";
+import { MailService } from "../mail/mail.service";
+import { SupabaseService } from "../supabase/supabase.service";
+import { BadRequestException } from "@nestjs/common";
+import {
+  buildObservation,
+  appendDeliveryObservation,
+  appendClaimObservation,
+} from "../common/helpers/observation.helper";
 
 @Injectable()
 export class DeliveriesAdminService {
   constructor(
     private prisma: PrismaService,
-    private users: UsersService
+    private users: UsersService,
+    private mail: MailService,
+    private supabase: SupabaseService,
   ) {}
 
   async create(dto: CreateDeliveryDto, assignedByUserId: string, user: AuthUser) {
@@ -44,6 +54,11 @@ export class DeliveriesAdminService {
       throw new ForbiddenException("Cannot create delivery for user from different organization");
     }
 
+    // Convert string observations to JSON array format
+    const observationsArray = dto.observations
+      ? [buildObservation(dto.observations, assignedByUserId, "Sistema", "system")]
+      : [];
+
     const delivery = await this.prisma.delivery.create({
       data: {
         type,
@@ -55,9 +70,21 @@ export class DeliveriesAdminService {
         itemName: dto.itemName,
         date: deliveryDate,
         assignedById: assignedByUserId,
-        observations: dto.observations,
+        observations: observationsArray as any,
+        photoUrl: dto.photoUrl,
       },
     });
+
+    if (type === DeliveryType.supply_delivery && patient.email && dto.itemName) {
+      this.mail.sendSupplyDeliveryNotification({
+        patientEmail: patient.email,
+        patientName: patient.fullName ?? undefined,
+        supplyName: dto.itemName,
+        quantity: dto.quantity ?? 0,
+        date: deliveryDate.toISOString(),
+        observations: dto.observations,
+      });
+    }
 
     if (dto.daysReimbursed && dto.itemName) {
       if (
@@ -140,6 +167,68 @@ export class DeliveriesAdminService {
     }
 
     return delivery;
+  }
+
+  async getDeliveryPhotoSignedUrl(deliveryId: string) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      select: { photoUrl: true },
+    });
+    if (!delivery) throw new NotFoundException("Delivery not found");
+    if (!delivery.photoUrl) return { url: null };
+
+    const { data, error } = await this.supabase.adminClient.storage
+      .from("entregas")
+      .createSignedUrl(delivery.photoUrl, 3600);
+
+    if (error) {
+      throw new BadRequestException(`Error generating signed URL: ${error.message}`);
+    }
+
+    return { url: data.signedUrl };
+  }
+
+  async addObservation(id: string, text: string, user: AuthUser) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id },
+      select: { id: true, claimId: true, organizationId: true },
+    });
+    if (!delivery) throw new NotFoundException("Delivery not found");
+
+    if (!canAccessOrg(user, delivery.organizationId)) {
+      throw new ForbiddenException("Cannot access delivery from different organization");
+    }
+
+    const author = await this.prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { fullName: true, email: true },
+    });
+    const authorName = author?.fullName || author?.email || user.userId;
+
+    const observation = buildObservation(text, user.userId, authorName, "manual");
+
+    await appendDeliveryObservation(this.prisma, id, observation);
+
+    // Cross-link: if delivery has a claim, also append to the claim
+    if (delivery.claimId) {
+      const crossObs = buildObservation(
+        text,
+        user.userId,
+        authorName,
+        "cross_delivery",
+        { sourceId: id, sourceType: "delivery" },
+      );
+      await appendClaimObservation(this.prisma, delivery.claimId, crossObs);
+    }
+
+    return this.prisma.delivery.findUnique({
+      where: { id },
+      include: {
+        user: { select: { id: true, fullName: true, email: true } },
+        claim: true,
+        assignedBy: { select: { id: true, fullName: true, email: true } },
+      },
+    });
   }
 
   async findByUserId(userId: string, user: AuthUser) {

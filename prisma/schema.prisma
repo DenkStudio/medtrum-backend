@@ -16,6 +16,7 @@ enum UserRole {
   patient
   educator
   super_educator
+  logistica
 }
 
 enum OrganizationName {
@@ -27,6 +28,8 @@ enum ClaimStatus {
   pending
   approved
   rejected
+  annulled
+  reimbursed
 }
 
 
@@ -210,6 +213,7 @@ model User {
 
   claims                      Claim[]              @relation("UserClaims")
   claimsResolved              Claim[]              @relation("ClaimResolvedBy")
+  claimsReimbursed            Claim[]              @relation("ClaimReimbursedBy")
   deliveries                  Delivery[]                   @relation("UserDeliveries")
   deliveriesAssigned          Delivery[]                   @relation("DeliveryAssignedBy")
 
@@ -245,11 +249,17 @@ model Claim {
   balanceAfterResolution  Int?        @map("balance_after_resolution")
   resolvedById            String?     @map("resolved_by_id")
   resolvedAt              DateTime?   @map("resolved_at")
+  reimbursedById          String?     @map("reimbursed_by_id")
+  reimbursedAt            DateTime?   @map("reimbursed_at")
+  reimbursementPhotoUrl   String?     @map("reimbursement_photo_url")
+  trackingLink            String?     @map("tracking_link")
+  shippingDate            DateTime?   @map("shipping_date")
   createdAt               DateTime    @default(now()) @map("created_at")
   updatedAt               DateTime    @updatedAt @map("updated_at")
 
   user         User              @relation("UserClaims", fields: [userId], references: [id], onDelete: Cascade)
   resolvedBy   User?             @relation("ClaimResolvedBy", fields: [resolvedById], references: [id])
+  reimbursedBy User?             @relation("ClaimReimbursedBy", fields: [reimbursedById], references: [id])
   deliveries   Delivery[]
 
   @@map("claims")
@@ -259,7 +269,7 @@ model Claim {
 model HardwareSupply {
   id             String         @id @default(uuid())
   type           SupplyType
-  serialNumber   String         @map("serial_number")
+  serialNumber   String?        @map("serial_number")
   lotNumber      String?        @map("lot_number")
   status         HardwareStatus @default(active)
   userId         String?        @map("user_id")
@@ -293,9 +303,12 @@ model Delivery {
   lotNumber       String?      @map("lot_number")
   date            DateTime     @default(now())
   assignedById    String?      @map("assigned_by")
-  observations    String?
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  observations       Json?       @default("[]")
+  photoUrl           String?      @map("photo_url")
+  receivedByPatient  Boolean      @default(false) @map("received_by_patient")
+  receivedAt         DateTime?    @map("received_at")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
 
   user         User              @relation("UserDeliveries", fields: [userId], references: [id], onDelete: Cascade)
   organization Organization?     @relation(fields: [organizationId], references: [id])

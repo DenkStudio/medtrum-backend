@@ -58,6 +58,12 @@ export class UsersAdminController {
     return this.usersAdminService.findAll(query, user);
   }
 
+  @Get("patients-overview")
+  @Roles("superadmin", "admin", "educator", "super_educator")
+  patientsOverview(@CurrentUser() user: AuthUser) {
+    return this.usersAdminService.patientsOverview(user);
+  }
+
   @Get("export")
   @Roles("superadmin", "admin")
   async exportUsersWithClaims(

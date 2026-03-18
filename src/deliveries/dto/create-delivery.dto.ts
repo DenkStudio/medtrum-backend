@@ -42,4 +42,8 @@ export class CreateDeliveryDto {
   @IsOptional()
   @IsString()
   observations?: string;
+
+  @IsOptional()
+  @IsString()
+  photoUrl?: string;
 }

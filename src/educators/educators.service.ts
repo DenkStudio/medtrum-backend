@@ -53,6 +53,7 @@ export class EducatorsService {
         include: {
           healthcare: true,
           doctor: true,
+          educator: { select: { id: true, name: true } },
         },
       }),
     ]);
