@@ -57,10 +57,8 @@ export class UsersAdminService {
       throw new BadRequestException(error.message);
     }
 
-    // Send invitation to family contact email if available, otherwise to patient
-    const inviteEmail = user.familyContactEmail || user.email;
     this.mail.sendInvitationEmail({
-      email: inviteEmail,
+      email: user.email,
       name: user.fullName ?? undefined,
       actionLink: data.properties.action_link,
     });
@@ -69,8 +67,11 @@ export class UsersAdminService {
   }
 
   async create(dto: CreateUserDto, createdByUserId?: string) {
+    // If minor has familyContactEmail, use that as the account email (for login)
+    const accountEmail = dto.familyContactEmail || dto.email;
+
     const exists = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email: accountEmail },
     });
     if (exists) throw new ConflictException("Email already in use");
 
@@ -81,7 +82,7 @@ export class UsersAdminService {
       const { data, error } =
         await this.supabase.adminClient.auth.admin.generateLink({
           type: "invite",
-          email: dto.email,
+          email: accountEmail,
           options: { redirectTo },
         });
 
@@ -90,10 +91,8 @@ export class UsersAdminService {
       }
       supabaseData = data;
 
-      // Send invitation to family contact email if minor has one, otherwise to patient
-      const inviteEmail = dto.familyContactEmail || dto.email;
       this.mail.sendInvitationEmail({
-        email: inviteEmail,
+        email: accountEmail,
         name: dto.fullName,
         actionLink: data.properties.action_link,
       });
@@ -101,7 +100,7 @@ export class UsersAdminService {
       // Create user with password
       const { data, error } =
         await this.supabase.adminClient.auth.admin.createUser({
-          email: dto.email,
+          email: accountEmail,
           password: dto.password,
           email_confirm: true,
         });
@@ -114,7 +113,7 @@ export class UsersAdminService {
       supabaseData = data;
 
       if (dto.role === UserRole.patient) {
-        this.mail.sendWelcomeEmail({ email: dto.email, name: dto.fullName });
+        this.mail.sendWelcomeEmail({ email: accountEmail, name: dto.fullName });
       }
     }
 
@@ -131,7 +130,7 @@ export class UsersAdminService {
 
     const created = await this.prisma.user.create({
       data: {
-        email: dto.email,
+        email: accountEmail,
         supabaseId: supabaseData.user.id,
         role: dto.role,
         healthcareId: dto.healthcare,
