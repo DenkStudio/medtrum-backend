@@ -16,22 +16,28 @@ export class DeliveriesService {
   ) {}
 
   async hasUnreceivedReimbursements(userId: string): Promise<boolean> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const count = await this.prisma.delivery.count({
       where: {
         userId,
         type: DeliveryType.claim_reimbursement,
         receivedByPatient: false,
+        date: { lt: today },
       },
     });
     return count > 0;
   }
 
   async findUnreceivedReimbursements(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     return this.prisma.delivery.findMany({
       where: {
         userId,
         type: DeliveryType.claim_reimbursement,
         receivedByPatient: false,
+        date: { lt: today },
       },
       include: {
         claim: {
@@ -69,13 +75,32 @@ export class DeliveriesService {
       return delivery;
     }
 
-    return this.prisma.delivery.update({
+    const updated = await this.prisma.delivery.update({
       where: { id: deliveryId },
       data: {
         receivedByPatient: true,
         receivedAt: new Date(),
       },
     });
+
+    // If this delivery belongs to a claim, check if all deliveries for that claim are received
+    if (delivery.claimId) {
+      const unreceived = await this.prisma.delivery.count({
+        where: {
+          claimId: delivery.claimId,
+          receivedByPatient: false,
+        },
+      });
+
+      if (unreceived === 0) {
+        await this.prisma.claim.update({
+          where: { id: delivery.claimId },
+          data: { status: "received" },
+        });
+      }
+    }
+
+    return updated;
   }
 
   async getDeliveryPhotoSignedUrl(deliveryId: string, userId: string) {

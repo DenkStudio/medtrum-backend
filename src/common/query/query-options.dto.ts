@@ -9,7 +9,7 @@ export class QueryOptionsDto {
   @IsOptional() @IsString() sort?: string;
   @IsOptional()
   @IsString()
-  @IsIn(["pending", "approved", "rejected"])
+  @IsIn(["pending", "approved", "rejected", "reimbursed", "received", "annulled"])
   status?: ClaimStatus;
   @IsOptional()
   @IsString()

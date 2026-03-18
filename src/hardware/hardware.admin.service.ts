@@ -17,6 +17,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import { buildDateRangeFilter } from "src/utils/paginate-query";
+import { parseDate } from "../common/helpers/date.helper";
 
 @Injectable()
 export class HardwareAdminService {
@@ -62,8 +63,8 @@ export class HardwareAdminService {
         userId: dto.userId,
         organizationId,
         assignedDate: new Date(),
-        saleDate: dto.saleDate ? new Date(dto.saleDate + "T12:00:00") : undefined,
-        placementDate: dto.placementDate ? new Date(dto.placementDate) : undefined,
+        saleDate: dto.saleDate ? parseDate(dto.saleDate) : undefined,
+        placementDate: dto.placementDate ? parseDate(dto.placementDate) : undefined,
       },
     });
 
@@ -110,7 +111,7 @@ export class HardwareAdminService {
             userId: dto.userId,
             organizationId,
             assignedDate: new Date(),
-            saleDate: dto.saleDate ? new Date(dto.saleDate + "T12:00:00") : undefined,
+            saleDate: dto.saleDate ? parseDate(dto.saleDate) : undefined,
           },
         });
 
@@ -175,8 +176,8 @@ export class HardwareAdminService {
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.userId !== undefined && { userId: dto.userId }),
         ...(dto.organizationId !== undefined && { organizationId: dto.organizationId }),
-        ...(dto.placementDate !== undefined && { placementDate: new Date(dto.placementDate) }),
-        ...(dto.saleDate !== undefined && { saleDate: new Date(dto.saleDate + "T12:00:00") }),
+        ...(dto.placementDate !== undefined && { placementDate: parseDate(dto.placementDate) }),
+        ...(dto.saleDate !== undefined && { saleDate: parseDate(dto.saleDate) }),
       },
       include: {
         user: {
@@ -744,7 +745,7 @@ export class HardwareAdminService {
       data: {
         ...(dto.serialNumber !== undefined && { serialNumber: dto.serialNumber }),
         ...(dto.lotNumber !== undefined && { lotNumber: dto.lotNumber }),
-        ...(dto.saleDate !== undefined && { saleDate: new Date(dto.saleDate + "T12:00:00") }),
+        ...(dto.saleDate !== undefined && { saleDate: parseDate(dto.saleDate) }),
       },
       include: {
         user: {

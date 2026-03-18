@@ -30,6 +30,7 @@ enum ClaimStatus {
   rejected
   annulled
   reimbursed
+  received
 }
 
 

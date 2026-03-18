@@ -13,6 +13,7 @@ import {
 import { CalendarQueryDto } from "./dto/calendar-query.dto";
 import { CreateCalendarEventDto } from "./dto/create-calendar-event.dto";
 import { CalendarEventColor } from "@prisma/client";
+import { parseDate } from "../common/helpers/date.helper";
 
 @Injectable()
 export class CalendarAdminService {
@@ -123,8 +124,8 @@ export class CalendarAdminService {
       data: {
         title: dto.title,
         description: dto.description,
-        startDate: new Date(dto.startDate),
-        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        startDate: parseDate(dto.startDate),
+        endDate: dto.endDate ? parseDate(dto.endDate) : null,
         color: (dto.color as CalendarEventColor) ?? "sky",
         category: dto.category,
         organizationId: orgId,
