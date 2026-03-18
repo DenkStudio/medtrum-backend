@@ -61,23 +61,12 @@ export class MailService {
 <body>
   <div style="max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 4px; overflow: hidden;">
     <!-- Header -->
-    <div style="background: linear-gradient(135deg, #0D4A3A 0%, #1A6B52 100%); padding: 36px 48px; text-align: center; position: relative;">
-      <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-        <tr>
-          <td style="width: 40px; height: 40px; border-radius: 8px; background: rgba(255,255,255,0.15); text-align: center; vertical-align: middle; font-size: 20px; color: white;">&#9678;</td>
-          <td style="padding-left: 10px; color: white; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; vertical-align: middle;">Medtrum</td>
-        </tr>
-      </table>
-      <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #4ECFA0, #A8F0D4, #4ECFA0);"></div>
+    <div style="background: linear-gradient(135deg, #0D4A3A 0%, #1A6B52 100%); padding: 36px 48px; text-align: center;">
+      <div style="color: white; font-size: 22px; font-weight: 700; letter-spacing: 0.5px;">Medtrum</div>
     </div>
     <!-- Hero band -->
     <div style="background: #F4FAF7; border-bottom: 1px solid #D6EDE4; padding: 20px 48px;">
-      <table cellpadding="0" cellspacing="0">
-        <tr>
-          <td style="width: 8px; height: 8px; border-radius: 50%; background: #1A6B52;"></td>
-          <td style="padding-left: 12px; font-size: 12px; color: #1A6B52; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">${heroLabel}</td>
-        </tr>
-      </table>
+      <p style="margin: 0; font-size: 12px; color: #1A6B52; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">${heroLabel}</p>
     </div>
     <!-- Body -->
     <div style="padding: 40px 48px;">
