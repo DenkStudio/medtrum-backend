@@ -28,7 +28,7 @@ export class LocalidadesAdminController {
   }
 
   @Get()
-  @Roles("admin", "superadmin")
+  @Roles("admin", "superadmin", "educator", "super_educator")
   findAll(
     @Query("province") province: string,
     @CurrentUser() user: AuthUser,
