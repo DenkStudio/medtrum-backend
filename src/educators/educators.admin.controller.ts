@@ -29,7 +29,7 @@ export class EducatorsAdminController {
   }
 
   @Get()
-  @Roles("admin", "superadmin", "super_educator")
+  @Roles("admin", "superadmin", "educator", "super_educator")
   findAll(@Query() query: QueryOptionsDto, @CurrentUser() user: AuthUser) {
     return this.educatorsService.findAll(query, user);
   }

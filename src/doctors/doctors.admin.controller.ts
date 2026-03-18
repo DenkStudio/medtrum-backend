@@ -28,7 +28,7 @@ export class DoctorsAdminController {
   }
 
   @Get()
-  @Roles("admin", "superadmin")
+  @Roles("admin", "superadmin", "educator", "super_educator")
   findAll(@Query() query: QueryOptionsDto, @CurrentUser() user: AuthUser) {
     return this.doctorsService.findAll(query, user);
   }
