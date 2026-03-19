@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger, UnauthorizedException, BadRequestException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { SupabaseService } from "../supabase/supabase.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -6,6 +6,8 @@ import { MailService } from "../mail/mail.service";
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
     private readonly prisma: PrismaService,
@@ -14,22 +16,30 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string) {
+    this.logger.log(`[LOGIN] Attempting login for email: ${email}`);
+
     const { data, error } = await this.supabase.client.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error || !data.session) {
+      this.logger.error(`[LOGIN] Supabase auth failed for ${email}: ${error?.message ?? 'No session returned'}`);
       throw new UnauthorizedException("Invalid credentials");
     }
+
+    this.logger.log(`[LOGIN] Supabase auth OK for ${email}, supabaseId: ${data.user.id}`);
 
     const user = await this.prisma.user.findUnique({
       where: { supabaseId: data.user.id },
     });
 
     if (!user) {
+      this.logger.error(`[LOGIN] User not found in DB for supabaseId: ${data.user.id}, email: ${email}`);
       throw new UnauthorizedException("User not found in system");
     }
+
+    this.logger.log(`[LOGIN] Login successful for ${email}, userId: ${user.id}, role: ${user.role}`);
 
     return {
       access_token: data.session.access_token,
