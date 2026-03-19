@@ -41,6 +41,18 @@ export class CreateDeliveryDto {
 
   @IsOptional()
   @IsString()
+  lotNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  trackingNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  courierName?: string;
+
+  @IsOptional()
+  @IsString()
   observations?: string;
 
   @IsOptional()

@@ -303,6 +303,8 @@ model Delivery {
   daysReimbursed  Int?         @map("days_reimbursed")
   itemName        SupplyType?  @map("item_name")
   lotNumber       String?      @map("lot_number")
+  trackingNumber  String?      @map("tracking_number")
+  courierName     String?      @map("courier_name")
   date            DateTime     @default(now())
   assignedById    String?      @map("assigned_by")
   observations       Json?       @default("[]")
