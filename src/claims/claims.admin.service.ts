@@ -454,29 +454,25 @@ export class ClaimsAdminService {
     ) {
       if (user) {
         if (returnedLots?.length) {
-          for (const lot of returnedLots) {
-            const deliveryObs = resolutionMessage
-              ? [buildObservation(resolutionMessage, user.userId, deliveryAuthorName, "system", { action: "reimbursed" })]
-              : [];
-            await this.prisma.delivery.create({
-              data: {
-                type: "claim_reimbursement",
-                userId: claim.userId,
-                organizationId: user.orgId ?? null,
-                claimId: claim.id,
-                quantity: lot.qty,
-                daysReimbursed: daysReimbursed
-                  ? Math.round((lot.qty / qty) * daysReimbursed)
-                  : undefined,
-                itemName: claim.supply ?? undefined,
-                lotNumber: lot.lotNumber,
-                date: new Date(),
-                assignedById: user.userId,
-                observations: deliveryObs as any,
-                photoUrl: extra?.deliveryPhotoUrl,
-              },
-            });
-          }
+          const deliveryObs = resolutionMessage
+            ? [buildObservation(resolutionMessage, user.userId, deliveryAuthorName, "system", { action: "reimbursed" })]
+            : [];
+          await this.prisma.delivery.create({
+            data: {
+              type: "claim_reimbursement",
+              userId: claim.userId,
+              organizationId: user.orgId ?? null,
+              claimId: claim.id,
+              quantity: qty,
+              daysReimbursed: daysReimbursed ?? undefined,
+              itemName: claim.supply ?? undefined,
+              lotNumber: returnedLots as any,
+              date: new Date(),
+              assignedById: user.userId,
+              observations: deliveryObs as any,
+              photoUrl: extra?.deliveryPhotoUrl,
+            },
+          });
 
           if (daysReimbursed && claim.supply) {
             await this.users.updateBalanceDays(
