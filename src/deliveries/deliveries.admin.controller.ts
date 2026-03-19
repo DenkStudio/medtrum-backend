@@ -60,7 +60,7 @@ export class DeliveriesAdminController {
   }
 
   @Get(":id")
-  @Roles("admin", "superadmin")
+  @Roles("admin", "superadmin", "educator", "super_educator")
   findOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.service.findOne(id, user);
   }

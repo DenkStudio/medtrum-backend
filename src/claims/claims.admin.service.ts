@@ -54,7 +54,7 @@ export class ClaimsAdminService {
     if (dateFilter) where.createdAt = dateFilter;
 
     if (user.role === "logistica") {
-      const allowed: ClaimStatus[] = ["approved", "reimbursed", "received"];
+      const allowed: ClaimStatus[] = ["approved", "reimbursed"];
       if (status && allowed.includes(status as ClaimStatus)) {
         where.status = status as ClaimStatus;
       } else {

@@ -12,8 +12,19 @@ import {
 } from "../common/helpers/organization-filter.helper";
 import { CalendarQueryDto } from "./dto/calendar-query.dto";
 import { CreateCalendarEventDto } from "./dto/create-calendar-event.dto";
-import { CalendarEventColor } from "@prisma/client";
+import { CalendarEventColor, SupplyType } from "@prisma/client";
 import { parseDate } from "../common/helpers/date.helper";
+
+const SUPPLY_LABELS: Record<SupplyType, string> = {
+  SENSOR: "Sensor",
+  PARCHE_200U: "Reservorio Parche 200U",
+  PARCHE_300U: "Reservorio Parche 300U",
+  TRANSMISOR: "Transmisor",
+  BASE_BOMBA_200U: "Base Bomba 200U",
+  BASE_BOMBA_300U: "Base Bomba 300U",
+  CABLE_TRANSMISOR: "Cable Transmisor",
+  PDM: "PDM",
+};
 
 @Injectable()
 export class CalendarAdminService {
@@ -72,7 +83,7 @@ export class CalendarAdminService {
     // Map hardware placements to calendar event format
     const placementEvents = hardwarePlacements.map((hw) => ({
       id: `hw_${hw.id}`,
-      title: `Colocación ${hw.type} - ${hw.user?.fullName ?? "Sin asignar"}`,
+      title: `Colocación ${SUPPLY_LABELS[hw.type] ?? hw.type} - ${hw.user?.fullName ?? "Sin asignar"}`,
       description: hw.user?.educator
         ? `Educadora: ${hw.user.educator.name}`
         : null,

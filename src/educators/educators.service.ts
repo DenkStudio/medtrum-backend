@@ -77,6 +77,14 @@ export class EducatorsService {
         claims: { orderBy: { createdAt: "desc" } },
         hardwareSupplies: true,
         medicalEntries: { orderBy: { createdAt: "desc" } },
+        deliveries: {
+          include: {
+            claim: true,
+            assignedBy: {
+              select: { id: true, fullName: true, email: true },
+            },
+          },
+        },
       },
     });
 

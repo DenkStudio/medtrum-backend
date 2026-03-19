@@ -7,6 +7,10 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { DeliveryType } from "@prisma/client";
 import { SupabaseService } from "../supabase/supabase.service";
+import {
+  buildObservation,
+  appendClaimObservation,
+} from "../common/helpers/observation.helper";
 
 @Injectable()
 export class DeliveriesService {
@@ -83,8 +87,24 @@ export class DeliveriesService {
       },
     });
 
-    // If this delivery belongs to a claim, check if all deliveries for that claim are received
+    // Add system observation to the claim
     if (delivery.claimId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { fullName: true },
+      });
+      const authorName = user?.fullName || "Paciente";
+
+      const obs = buildObservation(
+        `Paciente confirmó recepción de entrega`,
+        userId,
+        authorName,
+        "system",
+        { action: "delivery_received" },
+      );
+      await appendClaimObservation(this.prisma, delivery.claimId, obs);
+
+      // Check if all deliveries for that claim are received
       const unreceived = await this.prisma.delivery.count({
         where: {
           claimId: delivery.claimId,
@@ -95,7 +115,7 @@ export class DeliveriesService {
       if (unreceived === 0) {
         await this.prisma.claim.update({
           where: { id: delivery.claimId },
-          data: { status: "received" },
+          data: { status: "received" as any },
         });
       }
     }
