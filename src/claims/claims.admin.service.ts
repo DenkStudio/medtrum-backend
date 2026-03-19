@@ -351,12 +351,13 @@ export class ClaimsAdminService {
     const obsText = resolutionMessage
       ? `${label}: ${resolutionMessage}`
       : label;
-    const authorName = user
-      ? (await this.prisma.user.findUnique({
+    const authorRecord = user
+      ? await this.prisma.user.findUnique({
           where: { id: user.userId },
-          select: { fullName: true },
-        }))?.fullName || "Sistema"
-      : "Sistema";
+          select: { fullName: true, email: true },
+        })
+      : null;
+    const authorName = authorRecord?.fullName || authorRecord?.email || "Sistema";
 
     await appendClaimObservation(
       this.prisma,
@@ -437,6 +438,15 @@ export class ClaimsAdminService {
       updateData.shippingDate = new Date(extra.shippingDate);
     }
 
+    // Fetch user name for delivery observations
+    const deliveryAuthorRecord = user
+      ? await this.prisma.user.findUnique({
+          where: { id: user.userId },
+          select: { fullName: true, email: true },
+        })
+      : null;
+    const deliveryAuthorName = deliveryAuthorRecord?.fullName || deliveryAuthorRecord?.email || "Sistema";
+
     if (
       claim.supply === SupplyType.SENSOR ||
       claim.supply === SupplyType.PARCHE_200U ||
@@ -446,7 +456,7 @@ export class ClaimsAdminService {
         if (returnedLots?.length) {
           for (const lot of returnedLots) {
             const deliveryObs = resolutionMessage
-              ? [buildObservation(resolutionMessage, user.userId, "Sistema", "system", { action: "reimbursed" })]
+              ? [buildObservation(resolutionMessage, user.userId, deliveryAuthorName, "system", { action: "reimbursed" })]
               : [];
             await this.prisma.delivery.create({
               data: {
@@ -508,12 +518,13 @@ export class ClaimsAdminService {
     });
 
     // Auto-log system observation for reimbursement
-    const reimburseAuthorName = user
-      ? (await this.prisma.user.findUnique({
+    const reimburseAuthorRecord = user
+      ? await this.prisma.user.findUnique({
           where: { id: user.userId },
-          select: { fullName: true },
-        }))?.fullName || "Sistema"
-      : "Sistema";
+          select: { fullName: true, email: true },
+        })
+      : null;
+    const reimburseAuthorName = reimburseAuthorRecord?.fullName || reimburseAuthorRecord?.email || "Sistema";
     const reimburseText = resolutionMessage
       ? `Reclamo reintegrado (cantidad: ${qty}): ${resolutionMessage}`
       : `Reclamo reintegrado (cantidad: ${qty})`;
