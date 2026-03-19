@@ -75,6 +75,8 @@ export class DeliveriesAdminService {
         assignedById: assignedByUserId,
         observations: observationsArray as any,
         photoUrl: dto.photoUrl,
+        internalPhotoUrl: dto.internalPhotoUrl,
+        externalPhotoUrl: dto.externalPhotoUrl,
       },
     });
 
@@ -175,20 +177,26 @@ export class DeliveriesAdminService {
   async getDeliveryPhotoSignedUrl(deliveryId: string) {
     const delivery = await this.prisma.delivery.findUnique({
       where: { id: deliveryId },
-      select: { photoUrl: true },
+      select: { photoUrl: true, internalPhotoUrl: true, externalPhotoUrl: true },
     });
     if (!delivery) throw new NotFoundException("Delivery not found");
-    if (!delivery.photoUrl) return { url: null };
 
-    const { data, error } = await this.supabase.adminClient.storage
-      .from("entregas")
-      .createSignedUrl(delivery.photoUrl, 3600);
+    const signUrl = async (path: string | null) => {
+      if (!path) return null;
+      const { data, error } = await this.supabase.adminClient.storage
+        .from("entregas")
+        .createSignedUrl(path, 3600);
+      if (error) throw new BadRequestException(`Error generating signed URL: ${error.message}`);
+      return data.signedUrl;
+    };
 
-    if (error) {
-      throw new BadRequestException(`Error generating signed URL: ${error.message}`);
-    }
+    const [url, internalUrl, externalUrl] = await Promise.all([
+      signUrl(delivery.photoUrl),
+      signUrl(delivery.internalPhotoUrl),
+      signUrl(delivery.externalPhotoUrl),
+    ]);
 
-    return { url: data.signedUrl };
+    return { url, internalUrl, externalUrl };
   }
 
   async addObservation(id: string, text: string, user: AuthUser) {

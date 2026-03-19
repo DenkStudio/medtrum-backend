@@ -58,4 +58,12 @@ export class CreateDeliveryDto {
   @IsOptional()
   @IsString()
   photoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  internalPhotoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  externalPhotoUrl?: string;
 }

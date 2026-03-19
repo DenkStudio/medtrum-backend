@@ -309,6 +309,8 @@ model Delivery {
   assignedById    String?      @map("assigned_by")
   observations       Json?       @default("[]")
   photoUrl           String?      @map("photo_url")
+  internalPhotoUrl   String?      @map("internal_photo_url")
+  externalPhotoUrl   String?      @map("external_photo_url")
   receivedByPatient  Boolean      @default(false) @map("received_by_patient")
   receivedAt         DateTime?    @map("received_at")
   createdAt          DateTime     @default(now()) @map("created_at")
