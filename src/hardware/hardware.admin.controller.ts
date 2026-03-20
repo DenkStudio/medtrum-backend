@@ -54,13 +54,13 @@ export class HardwareAdminController {
   }
 
   @Get(":id")
-  @Roles("admin", "superadmin")
+  @Roles("admin", "superadmin", "educator", "super_educator")
   findOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.service.findOne(id, user);
   }
 
   @Patch(":id")
-  @Roles("admin", "superadmin")
+  @Roles("admin", "superadmin", "educator", "super_educator")
   update(
     @Param("id") id: string,
     @Body() dto: UpdateHardwareSupplyDto,

@@ -1,13 +1,14 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
+import { HardwareAdminService } from "../hardware/hardware.admin.service";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import {
   PaginatedResult,
   buildOrderBy,
   buildDateRangeFilter,
 } from "src/utils/paginate-query";
-import { ClaimStatus, Prisma, SupplyType } from "@prisma/client";
+import { ClaimStatus, HardwareStatus, Prisma, SupplyType } from "@prisma/client";
 import {
   AuthUser,
   buildOrgFilter,
@@ -22,6 +23,18 @@ import {
   appendClaimObservation,
 } from "../common/helpers/observation.helper";
 import * as ExcelJS from "exceljs";
+
+function isReplacementHardwareType(supply: SupplyType | null): boolean {
+  if (!supply) return false;
+  const replacementTypes: SupplyType[] = [
+    SupplyType.TRANSMISOR,
+    SupplyType.CABLE_TRANSMISOR,
+    SupplyType.BASE_BOMBA_200U,
+    SupplyType.BASE_BOMBA_300U,
+    SupplyType.PDM,
+  ];
+  return replacementTypes.includes(supply);
+}
 
 const SUPPLY_LABELS: Record<string, string> = {
   SENSOR: "Sensor",
@@ -42,6 +55,7 @@ export class ClaimsAdminService {
     private readonly deliveries: DeliveriesAdminService,
     private readonly mail: MailService,
     private readonly supabase: SupabaseService,
+    private readonly hardwareService: HardwareAdminService,
   ) {}
 
   async findAll(query: QueryOptionsDto, user: AuthUser): Promise<PaginatedResult<any>> {
@@ -394,6 +408,9 @@ export class ClaimsAdminService {
       contactName?: string;
       contactPhone?: string;
       contactEmail?: string;
+      replacementSerialNumber?: string;
+      replacementLotNumber?: string;
+      replacementPurchaseDate?: string;
     },
   ) {
     const claim = await this.prisma.claim.findUnique({
@@ -518,6 +535,103 @@ export class ClaimsAdminService {
             : updatedPatient.balanceDaysParche ?? 0;
         }
       }
+    }
+
+    // Hardware replacement logic (TRANSMISOR, CABLE_TRANSMISOR, BASE_BOMBA, PDM)
+    if (
+      isReplacementHardwareType(claim.supply) &&
+      extra?.replacementSerialNumber &&
+      user
+    ) {
+      const supply = claim.supply!;
+
+      // Determine which types to retire based on the claimed supply
+      let typesToRetire: SupplyType[];
+      if (supply === SupplyType.TRANSMISOR || supply === SupplyType.CABLE_TRANSMISOR) {
+        typesToRetire = [SupplyType.TRANSMISOR, SupplyType.CABLE_TRANSMISOR];
+      } else if (supply === SupplyType.BASE_BOMBA_200U || supply === SupplyType.BASE_BOMBA_300U) {
+        typesToRetire = [supply];
+      } else {
+        // PDM
+        typesToRetire = [SupplyType.PDM];
+      }
+
+      // Retire old hardware
+      await this.prisma.hardwareSupply.updateMany({
+        where: {
+          userId: claim.userId,
+          type: { in: typesToRetire },
+          status: HardwareStatus.active,
+        },
+        data: { status: HardwareStatus.retired },
+      });
+
+      // Create new replacement hardware
+      if (supply === SupplyType.TRANSMISOR || supply === SupplyType.CABLE_TRANSMISOR) {
+        // Kit: create TRANSMISOR (auto-creates CABLE_TRANSMISOR via hardwareService.create)
+        await this.hardwareService.create(
+          {
+            type: SupplyType.TRANSMISOR,
+            serialNumber: extra.replacementSerialNumber,
+            lotNumber: extra.replacementLotNumber,
+            userId: claim.userId,
+            saleDate: extra.replacementPurchaseDate,
+          },
+          user.userId,
+          claim.user.organizationId ?? undefined,
+        );
+      } else if (supply === SupplyType.BASE_BOMBA_200U || supply === SupplyType.BASE_BOMBA_300U) {
+        // Base bomba only (no pdmSerialNumber → won't create PDM)
+        await this.hardwareService.create(
+          {
+            type: supply,
+            serialNumber: extra.replacementSerialNumber,
+            lotNumber: extra.replacementLotNumber,
+            userId: claim.userId,
+            saleDate: extra.replacementPurchaseDate,
+          },
+          user.userId,
+          claim.user.organizationId ?? undefined,
+        );
+      } else if (supply === SupplyType.PDM) {
+        // PDM: create directly (not a primary type in hardwareService.create)
+        await this.prisma.hardwareSupply.create({
+          data: {
+            type: SupplyType.PDM,
+            serialNumber: extra.replacementSerialNumber,
+            lotNumber: extra.replacementLotNumber,
+            userId: claim.userId,
+            organizationId: claim.user.organizationId ?? undefined,
+            assignedDate: new Date(),
+            saleDate: extra.replacementPurchaseDate
+              ? parseDate(extra.replacementPurchaseDate)
+              : undefined,
+          },
+        });
+      }
+
+      // Create delivery record for hardware reimbursement
+      const deliveryObs = resolutionMessage
+        ? [buildObservation(resolutionMessage, user.userId, deliveryAuthorName, "system", { action: "reimbursed" })]
+        : [];
+      await this.prisma.delivery.create({
+        data: {
+          type: "claim_reimbursement",
+          userId: claim.userId,
+          organizationId: user.orgId ?? null,
+          claimId: claim.id,
+          quantity: 1,
+          itemName: claim.supply ?? undefined,
+          date: new Date(),
+          assignedById: user.userId,
+          observations: deliveryObs as any,
+          internalPhotoUrls: extra?.reimbursementPhotoUrls ?? [],
+          externalPhotoUrls: extra?.deliveryPhotoUrls ?? [],
+          contactName: extra?.contactName,
+          contactPhone: extra?.contactPhone,
+          contactEmail: extra?.contactEmail,
+        },
+      });
     }
 
     await this.prisma.claim.update({

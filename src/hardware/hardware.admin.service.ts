@@ -196,6 +196,22 @@ export class HardwareAdminService {
       );
     }
 
+    // Educators can only update placementDate
+    if (user.role === "educator" || user.role === "super_educator") {
+      const allowedFields = ["placementDate"];
+      const attemptedFields = Object.keys(dto).filter(
+        (k) => (dto as Record<string, any>)[k] !== undefined,
+      );
+      const disallowed = attemptedFields.filter(
+        (f) => !allowedFields.includes(f),
+      );
+      if (disallowed.length > 0) {
+        throw new ForbiddenException(
+          "Los educadores solo pueden editar la fecha de aplicación",
+        );
+      }
+    }
+
     if (dto.serialNumber || dto.type) {
       const checkType = dto.type || hardware.type;
       const checkSerial = dto.serialNumber || hardware.serialNumber;

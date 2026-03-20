@@ -5,9 +5,10 @@ import { UsersModule } from "../users/users.module";
 import { Claimsontroller } from "./claims.controller";
 import { ClaimsService } from "./claims.service";
 import { DeliveriesModule } from "../deliveries/deliveries.module";
+import { HardwareModule } from "../hardware/hardware.module";
 
 @Module({
-  imports: [UsersModule, DeliveriesModule],
+  imports: [UsersModule, DeliveriesModule, HardwareModule],
   providers: [ClaimsAdminService, ClaimsService],
   controllers: [ClaimsAdminController, Claimsontroller],
 })

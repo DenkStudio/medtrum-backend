@@ -100,6 +100,9 @@ export class ClaimsAdminController {
       contactName?: string;
       contactPhone?: string;
       contactEmail?: string;
+      replacementSerialNumber?: string;
+      replacementLotNumber?: string;
+      replacementPurchaseDate?: string;
     },
     @CurrentUser() user: AuthUser
   ) {
@@ -119,6 +122,9 @@ export class ClaimsAdminController {
         contactName: body.contactName,
         contactPhone: body.contactPhone,
         contactEmail: body.contactEmail,
+        replacementSerialNumber: body.replacementSerialNumber,
+        replacementLotNumber: body.replacementLotNumber,
+        replacementPurchaseDate: body.replacementPurchaseDate,
       },
     );
   }
