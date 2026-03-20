@@ -7,4 +7,5 @@ export class CreateHardwareItemDto {
   @IsOptional() @IsString() lotNumber?: string;
   @IsOptional() @IsDateString() saleDate?: string;
   @IsOptional() @IsDateString() placementDate?: string;
+  @IsOptional() @IsString() pdmSerialNumber?: string;
 }

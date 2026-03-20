@@ -71,12 +71,14 @@ export class DeliveriesAdminService {
         lotNumber: dto.lotNumber,
         trackingNumber: dto.trackingNumber,
         courierName: dto.courierName,
+        contactName: dto.contactName,
+        contactPhone: dto.contactPhone,
+        contactEmail: dto.contactEmail,
         date: deliveryDate,
         assignedById: assignedByUserId,
         observations: observationsArray as any,
-        photoUrl: dto.photoUrl,
-        internalPhotoUrl: dto.internalPhotoUrl,
-        externalPhotoUrl: dto.externalPhotoUrl,
+        internalPhotoUrls: dto.internalPhotoUrls ?? [],
+        externalPhotoUrls: dto.externalPhotoUrls ?? [],
       },
     });
 
@@ -177,26 +179,30 @@ export class DeliveriesAdminService {
   async getDeliveryPhotoSignedUrl(deliveryId: string) {
     const delivery = await this.prisma.delivery.findUnique({
       where: { id: deliveryId },
-      select: { photoUrl: true, internalPhotoUrl: true, externalPhotoUrl: true },
+      select: { internalPhotoUrls: true, externalPhotoUrls: true },
     });
     if (!delivery) throw new NotFoundException("Delivery not found");
 
-    const signUrl = async (path: string | null) => {
+    const signUrl = async (path: string | null, bucket: string) => {
       if (!path) return null;
       const { data, error } = await this.supabase.adminClient.storage
-        .from("entregas")
+        .from(bucket)
         .createSignedUrl(path, 3600);
       if (error) throw new BadRequestException(`Error generating signed URL: ${error.message}`);
       return data.signedUrl;
     };
 
-    const [url, internalUrl, externalUrl] = await Promise.all([
-      signUrl(delivery.photoUrl),
-      signUrl(delivery.internalPhotoUrl),
-      signUrl(delivery.externalPhotoUrl),
+    const signUrls = async (paths: string[], bucket: string) => {
+      if (!paths || paths.length === 0) return [];
+      return Promise.all(paths.map((p) => signUrl(p, bucket)));
+    };
+
+    const [internalUrls, externalUrls] = await Promise.all([
+      signUrls(delivery.internalPhotoUrls, "reintegros"),
+      signUrls(delivery.externalPhotoUrls, "entregas"),
     ]);
 
-    return { url, internalUrl, externalUrl };
+    return { internalUrls, externalUrls };
   }
 
   async addObservation(id: string, text: string, user: AuthUser) {
@@ -240,6 +246,26 @@ export class DeliveriesAdminService {
         assignedBy: { select: { id: true, fullName: true, email: true } },
       },
     });
+  }
+
+  async getLastContactByUserId(userId: string) {
+    const delivery = await this.prisma.delivery.findFirst({
+      where: {
+        userId,
+        OR: [
+          { contactName: { not: null } },
+          { contactPhone: { not: null } },
+          { contactEmail: { not: null } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        contactName: true,
+        contactPhone: true,
+        contactEmail: true,
+      },
+    });
+    return delivery;
   }
 
   async findByUserId(userId: string, user: AuthUser) {

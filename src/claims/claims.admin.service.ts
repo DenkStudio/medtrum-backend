@@ -254,7 +254,7 @@ export class ClaimsAdminService {
   async findOne(claimId: string, user?: AuthUser) {
     const claim = await this.prisma.claim.findUnique({
       where: { id: claimId },
-      include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } }, reimbursedBy: { select: { id: true, fullName: true, email: true } } },
+      include: { user: { include: { localidad: true } }, deliveries: { include: { assignedBy: { select: { id: true, fullName: true, email: true } } } }, resolvedBy: { select: { id: true, fullName: true, email: true } }, reimbursedBy: { select: { id: true, fullName: true, email: true } } },
     });
     return claim;
   }
@@ -387,9 +387,13 @@ export class ClaimsAdminService {
     returnedLots?: { lotNumber: string; qty: number }[],
     extra?: {
       reimbursementPhotoUrl?: string;
+      reimbursementPhotoUrls?: string[];
       trackingLink?: string;
       shippingDate?: string;
-      deliveryPhotoUrl?: string;
+      deliveryPhotoUrls?: string[];
+      contactName?: string;
+      contactPhone?: string;
+      contactEmail?: string;
     },
   ) {
     const claim = await this.prisma.claim.findUnique({
@@ -470,7 +474,11 @@ export class ClaimsAdminService {
               date: new Date(),
               assignedById: user.userId,
               observations: deliveryObs as any,
-              photoUrl: extra?.deliveryPhotoUrl,
+              internalPhotoUrls: extra?.reimbursementPhotoUrls ?? [],
+              externalPhotoUrls: extra?.deliveryPhotoUrls ?? [],
+              contactName: extra?.contactName,
+              contactPhone: extra?.contactPhone,
+              contactEmail: extra?.contactEmail,
             },
           });
 
@@ -490,7 +498,11 @@ export class ClaimsAdminService {
               daysReimbursed,
               itemName: claim.supply ?? undefined,
               observations: resolutionMessage,
-              photoUrl: extra?.deliveryPhotoUrl,
+              internalPhotoUrls: extra?.reimbursementPhotoUrls ?? [],
+              externalPhotoUrls: extra?.deliveryPhotoUrls ?? [],
+              contactName: extra?.contactName,
+              contactPhone: extra?.contactPhone,
+              contactEmail: extra?.contactEmail,
             },
             user.userId,
             user

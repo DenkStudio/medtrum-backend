@@ -93,9 +93,13 @@ export class ClaimsAdminController {
       resolutionMessage?: string;
       returnedLots?: { lotNumber: string; qty: number }[];
       reimbursementPhotoUrl?: string;
+      reimbursementPhotoUrls?: string[];
       trackingLink?: string;
       shippingDate?: string;
-      deliveryPhotoUrl?: string;
+      deliveryPhotoUrls?: string[];
+      contactName?: string;
+      contactPhone?: string;
+      contactEmail?: string;
     },
     @CurrentUser() user: AuthUser
   ) {
@@ -108,9 +112,13 @@ export class ClaimsAdminController {
       body.returnedLots,
       {
         reimbursementPhotoUrl: body.reimbursementPhotoUrl,
+        reimbursementPhotoUrls: body.reimbursementPhotoUrls,
         trackingLink: body.trackingLink,
         shippingDate: body.shippingDate,
-        deliveryPhotoUrl: body.deliveryPhotoUrl,
+        deliveryPhotoUrls: body.deliveryPhotoUrls,
+        contactName: body.contactName,
+        contactPhone: body.contactPhone,
+        contactEmail: body.contactEmail,
       },
     );
   }

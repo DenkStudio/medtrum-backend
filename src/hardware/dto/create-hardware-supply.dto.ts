@@ -9,4 +9,5 @@ export class CreateHardwareSupplyDto {
   @IsOptional() @IsUUID() organizationId?: string;
   @IsOptional() @IsDateString() saleDate?: string;
   @IsOptional() @IsDateString() placementDate?: string;
+  @IsOptional() @IsString() pdmSerialNumber?: string;
 }

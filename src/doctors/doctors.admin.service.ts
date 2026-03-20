@@ -1,12 +1,7 @@
-import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateDoctorDto } from "./dto/create-doctor.dto";
-import {
-  AuthUser,
-  buildOrgFilter,
-  getCreateOrgId,
-  canAccessOrg,
-} from "../common/helpers/organization-filter.helper";
+import { AuthUser } from "../common/helpers/organization-filter.helper";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import { buildDateRangeFilter } from "src/utils/paginate-query";
 import { Prisma } from "@prisma/client";
@@ -16,30 +11,31 @@ export class DoctorsAdminService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateDoctorDto, user: AuthUser) {
-    const organizationId = getCreateOrgId(user, data.organizationId);
-
     return this.prisma.doctor.create({
       data: {
-        name: data.name,
-        province: data.province,
-        telephone: data.telephone,
-        organizationId,
+        firstName: data.firstName,
+        lastName: data.lastName,
       },
     });
   }
 
   async findAll(query: QueryOptionsDto, user: AuthUser) {
-    const { from, to, organization } = query;
-    const where: Prisma.DoctorWhereInput = {
-      ...buildOrgFilter(user),
-      ...(organization && { organizationId: organization }),
-    };
+    const { from, to, search } = query;
+    const where: Prisma.DoctorWhereInput = {};
 
     const dateFilter = buildDateRangeFilter(from, to);
     if (dateFilter) where.createdAt = dateFilter;
 
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: "insensitive" } },
+        { lastName: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
     return this.prisma.doctor.findMany({
       where,
+      orderBy: { lastName: "asc" },
       include: {
         patients: {
           where: { role: "patient" },
@@ -84,21 +80,15 @@ export class DoctorsAdminService {
       throw new NotFoundException("Doctor not found");
     }
 
-    if (!canAccessOrg(user, doctor.organizationId)) {
-      throw new ForbiddenException("Cannot access doctor from different organization");
-    }
-
     return doctor;
   }
 
   async update(id: string, data: Partial<CreateDoctorDto>, user: AuthUser) {
     await this.findById(id, user);
 
-    const { organizationId, ...updateData } = data;
-
     return this.prisma.doctor.update({
       where: { id },
-      data: updateData,
+      data,
     });
   }
 

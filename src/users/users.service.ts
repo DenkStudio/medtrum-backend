@@ -39,6 +39,15 @@ export class UsersService {
       include: {
         organization: true,
         healthcare: true,
+        educator: {
+          select: {
+            id: true,
+            name: true,
+            province: true,
+            telephone: true,
+            user: { select: { email: true } },
+          },
+        },
         deliveries: {
           include: {
             assignedBy: {
@@ -63,15 +72,6 @@ export class UsersService {
 
     const hardware = await this.prisma.hardwareSupply.findMany({
       where: { userId, status: 'active' },
-      include: {
-        activityLogs: {
-          include: {
-            user: { select: { id: true, fullName: true, email: true } },
-            previousUser: { select: { id: true, fullName: true, email: true } },
-            newUser: { select: { id: true, fullName: true, email: true } },
-          },
-        },
-      },
     });
 
     return {

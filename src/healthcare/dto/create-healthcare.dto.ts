@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID } from "class-validator";
+import { IsString, IsNotEmpty, IsOptional } from "class-validator";
 
 export class CreateHealthcareDto {
   @IsString()
@@ -10,10 +10,14 @@ export class CreateHealthcareDto {
   legalName!: string;
 
   @IsString()
-  @IsNotEmpty()
-  cuit!: string;
-
   @IsOptional()
-  @IsUUID()
-  organizationId?: string;
+  cuit?: string;
+
+  @IsString()
+  @IsOptional()
+  rnos?: string;
+
+  @IsString()
+  @IsOptional()
+  sigla?: string;
 }

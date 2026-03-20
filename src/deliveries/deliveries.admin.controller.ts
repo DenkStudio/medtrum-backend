@@ -29,18 +29,24 @@ export class DeliveriesAdminController {
   }
 
   @Get()
-  @Roles("admin", "superadmin")
+  @Roles("admin", "superadmin", "logistica")
   findAll(@Query() query: QueryOptionsDto, @CurrentUser() user: AuthUser) {
     return this.service.findAll(query, user);
   }
 
   @Get("user/:userId")
-  @Roles("admin", "superadmin")
+  @Roles("admin", "superadmin", "logistica")
   findByUserId(
     @Param("userId") userId: string,
     @CurrentUser() user: AuthUser
   ) {
     return this.service.findByUserId(userId, user);
+  }
+
+  @Get("user/:userId/last-contact")
+  @Roles("admin", "superadmin", "logistica")
+  getLastContact(@Param("userId") userId: string) {
+    return this.service.getLastContactByUserId(userId);
   }
 
   @Patch(":id/observations")
@@ -54,13 +60,13 @@ export class DeliveriesAdminController {
   }
 
   @Get(":id/photo-url")
-  @Roles("admin", "superadmin", "logistica")
+  @Roles("admin", "superadmin", "educator", "super_educator", "logistica")
   getPhotoUrl(@Param("id") id: string) {
     return this.service.getDeliveryPhotoSignedUrl(id);
   }
 
   @Get(":id")
-  @Roles("admin", "superadmin", "educator", "super_educator")
+  @Roles("admin", "superadmin", "educator", "super_educator", "logistica")
   findOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.service.findOne(id, user);
   }

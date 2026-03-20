@@ -18,13 +18,6 @@ export class HardwareService {
             healthcare: true,
           },
         },
-        activityLogs: {
-          include: {
-            user: { select: { id: true, fullName: true, email: true } },
-            previousUser: { select: { id: true, fullName: true, email: true } },
-            newUser: { select: { id: true, fullName: true, email: true } },
-          },
-        },
       },
     });
   }

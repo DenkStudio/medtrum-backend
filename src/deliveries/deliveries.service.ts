@@ -126,22 +126,23 @@ export class DeliveriesService {
   async getDeliveryPhotoSignedUrl(deliveryId: string, userId: string) {
     const delivery = await this.prisma.delivery.findUnique({
       where: { id: deliveryId },
-      select: { photoUrl: true, userId: true },
+      select: { externalPhotoUrls: true, userId: true },
     });
     if (!delivery) throw new NotFoundException("Entrega no encontrada");
     if (delivery.userId !== userId) {
       throw new ForbiddenException("No tenés permiso para ver esta entrega");
     }
-    if (!delivery.photoUrl) return { url: null };
+    if (!delivery.externalPhotoUrls?.length) return { url: null, externalUrls: [] };
 
-    const { data, error } = await this.supabase.adminClient.storage
-      .from("entregas")
-      .createSignedUrl(delivery.photoUrl, 3600);
+    const signUrl = async (path: string) => {
+      const { data, error } = await this.supabase.adminClient.storage
+        .from("entregas")
+        .createSignedUrl(path, 3600);
+      if (error) throw new BadRequestException(`Error generating signed URL: ${error.message}`);
+      return data.signedUrl;
+    };
 
-    if (error) {
-      throw new BadRequestException(`Error generating signed URL: ${error.message}`);
-    }
-
-    return { url: data.signedUrl };
+    const externalUrls = await Promise.all(delivery.externalPhotoUrls.map(signUrl));
+    return { url: externalUrls[0] || null, externalUrls };
   }
 }

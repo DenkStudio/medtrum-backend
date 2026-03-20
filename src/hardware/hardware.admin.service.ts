@@ -8,7 +8,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CreateHardwareSupplyDto } from "./dto/create-hardware-supply.dto";
 import { UpdateHardwareSupplyDto } from "./dto/update-hardware-supply.dto";
 import { UpdateHardwareLogisticaDto } from "./dto/update-hardware-logistica.dto";
-import { HardwareActivityType, HardwareStatus, SupplyType } from "@prisma/client";
+import { HardwareStatus, SupplyType } from "@prisma/client";
 import {
   AuthUser,
   buildOrgFilter,
@@ -18,6 +18,21 @@ import { Prisma } from "@prisma/client";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import { buildDateRangeFilter } from "src/utils/paginate-query";
 import { parseDate } from "../common/helpers/date.helper";
+
+const SUPPLY_TYPE_LABELS: Record<string, string> = {
+  SENSOR: "Sensor",
+  PARCHE_200U: "Parche 200U",
+  PARCHE_300U: "Parche 300U",
+  TRANSMISOR: "Transmisor",
+  BASE_BOMBA_200U: "Base Bomba 200U",
+  BASE_BOMBA_300U: "Base Bomba 300U",
+  CABLE_TRANSMISOR: "Cable Transmisor",
+  PDM: "PDM",
+};
+
+function supplyLabel(type: string): string {
+  return SUPPLY_TYPE_LABELS[type] || type;
+}
 
 @Injectable()
 export class HardwareAdminService {
@@ -38,7 +53,7 @@ export class HardwareAdminService {
 
       if (existing) {
         throw new ConflictException(
-          `Hardware of type ${dto.type} with serial number ${dto.serialNumber} already exists`,
+          `Ya existe un producto de tipo ${supplyLabel(dto.type)} con número de serie ${dto.serialNumber}`,
         );
       }
     }
@@ -65,15 +80,6 @@ export class HardwareAdminService {
         assignedDate: new Date(),
         saleDate: dto.saleDate ? parseDate(dto.saleDate) : undefined,
         placementDate: dto.placementDate ? parseDate(dto.placementDate) : undefined,
-      },
-    });
-
-    await this.prisma.hardwareActivityLog.create({
-      data: {
-        hardwareId: supply.id,
-        type: HardwareActivityType.assignment,
-        userId: createdByUserId,
-        newUserId: dto.userId,
       },
     });
 
@@ -112,18 +118,60 @@ export class HardwareAdminService {
             organizationId,
             assignedDate: new Date(),
             saleDate: dto.saleDate ? parseDate(dto.saleDate) : undefined,
+            placementDate: dto.placementDate ? parseDate(dto.placementDate) : undefined,
+            linkedHardwareId: supply.id,
           },
         });
 
-        await this.prisma.hardwareActivityLog.create({
-          data: {
-            hardwareId: cable.id,
-            type: HardwareActivityType.assignment,
-            userId: createdByUserId,
-            newUserId: dto.userId,
+      }
+    }
+
+    // Auto-create companion PDM when creating a BASE_BOMBA
+    if (
+      dto.type === SupplyType.BASE_BOMBA_200U ||
+      dto.type === SupplyType.BASE_BOMBA_300U
+    ) {
+      if (dto.pdmSerialNumber) {
+        const pdmExists = await this.prisma.hardwareSupply.findFirst({
+          where: {
+            serialNumber: dto.pdmSerialNumber,
+            type: SupplyType.PDM,
           },
         });
+
+        if (pdmExists) {
+          throw new ConflictException(
+            `Ya existe un PDM con número de serie ${dto.pdmSerialNumber}`,
+          );
+        }
       }
+
+      // Mark existing active PDM for this user as replaced
+      if (dto.userId) {
+        await this.prisma.hardwareSupply.updateMany({
+          where: {
+            userId: dto.userId,
+            type: SupplyType.PDM,
+            status: HardwareStatus.active,
+          },
+          data: { status: HardwareStatus.replaced },
+        });
+      }
+
+      const pdm = await this.prisma.hardwareSupply.create({
+        data: {
+          type: SupplyType.PDM,
+          serialNumber: dto.pdmSerialNumber || null,
+          lotNumber: dto.lotNumber,
+          userId: dto.userId,
+          organizationId,
+          assignedDate: new Date(),
+          saleDate: dto.saleDate ? parseDate(dto.saleDate) : undefined,
+          placementDate: dto.placementDate ? parseDate(dto.placementDate) : undefined,
+          linkedHardwareId: supply.id,
+        },
+      });
+
     }
 
     return supply;
@@ -162,7 +210,7 @@ export class HardwareAdminService {
 
       if (duplicate) {
         throw new ConflictException(
-          `Hardware of type ${checkType} with serial number ${checkSerial} already exists`,
+          `Ya existe un producto de tipo ${supplyLabel(checkType)} con número de serie ${checkSerial}`,
         );
       }
     }
@@ -187,13 +235,6 @@ export class HardwareAdminService {
             email: true,
             doctor: true,
             healthcare: true,
-          },
-        },
-        activityLogs: {
-          include: {
-            user: { select: { id: true, fullName: true, email: true } },
-            previousUser: { select: { id: true, fullName: true, email: true } },
-            newUser: { select: { id: true, fullName: true, email: true } },
           },
         },
       },
@@ -225,13 +266,6 @@ export class HardwareAdminService {
             healthcare: true,
           },
         },
-        activityLogs: {
-          include: {
-            user: { select: { id: true, fullName: true, email: true } },
-            previousUser: { select: { id: true, fullName: true, email: true } },
-            newUser: { select: { id: true, fullName: true, email: true } },
-          },
-        },
       },
     });
   }
@@ -260,13 +294,6 @@ export class HardwareAdminService {
             healthcare: true,
           },
         },
-        activityLogs: {
-          include: {
-            user: { select: { id: true, fullName: true, email: true } },
-            previousUser: { select: { id: true, fullName: true, email: true } },
-            newUser: { select: { id: true, fullName: true, email: true } },
-          },
-        },
       },
     });
   }
@@ -284,13 +311,6 @@ export class HardwareAdminService {
             healthcare: true,
           },
         },
-        activityLogs: {
-          include: {
-            user: { select: { id: true, fullName: true, email: true } },
-            previousUser: { select: { id: true, fullName: true, email: true } },
-            newUser: { select: { id: true, fullName: true, email: true } },
-          },
-        },
       },
     });
 
@@ -303,160 +323,6 @@ export class HardwareAdminService {
     }
 
     return supply;
-  }
-
-  async assign(
-    hardwareId: string,
-    userId: string,
-    assignedByUserId: string,
-    user: AuthUser,
-    observations?: string,
-  ) {
-    const hardware = await this.prisma.hardwareSupply.findUnique({
-      where: { id: hardwareId },
-    });
-
-    if (!hardware) throw new NotFoundException("Hardware supply not found");
-
-    if (!canAccessOrg(user, hardware.organizationId)) {
-      throw new ForbiddenException("Cannot access hardware from different organization");
-    }
-
-    const previousUserId = hardware.userId;
-
-    // Mark existing active hardware of the same type for the new user as replaced
-    await this.prisma.hardwareSupply.updateMany({
-      where: {
-        userId,
-        type: hardware.type,
-        status: HardwareStatus.active,
-        id: { not: hardwareId },
-      },
-      data: { status: HardwareStatus.replaced },
-    });
-
-    await this.prisma.$transaction([
-      this.prisma.hardwareSupply.update({
-        where: { id: hardwareId },
-        data: {
-          userId,
-          assignedDate: new Date(),
-          status: HardwareStatus.active,
-        },
-      }),
-      this.prisma.hardwareActivityLog.create({
-        data: {
-          hardwareId,
-          type: HardwareActivityType.assignment,
-          userId: assignedByUserId,
-          previousUserId,
-          newUserId: userId,
-          observations,
-        },
-      }),
-    ]);
-
-    return this.findOne(hardwareId);
-  }
-
-  async returnHardware(
-    hardwareId: string,
-    returnedByUserId: string,
-    user: AuthUser,
-    observations?: string,
-  ) {
-    const hardware = await this.prisma.hardwareSupply.findUnique({
-      where: { id: hardwareId },
-    });
-
-    if (!hardware) throw new NotFoundException("Hardware supply not found");
-
-    if (!canAccessOrg(user, hardware.organizationId)) {
-      throw new ForbiddenException("Cannot access hardware from different organization");
-    }
-
-    if (!hardware.userId)
-      throw new Error("Hardware is not assigned to any user");
-
-    const previousUserId = hardware.userId;
-
-    await this.prisma.$transaction([
-      this.prisma.hardwareSupply.update({
-        where: { id: hardwareId },
-        data: {
-          userId: null,
-          assignedDate: null,
-        },
-      }),
-      this.prisma.hardwareActivityLog.create({
-        data: {
-          hardwareId,
-          type: HardwareActivityType.return_hw,
-          userId: returnedByUserId,
-          previousUserId,
-          observations,
-        },
-      }),
-    ]);
-
-    return this.findOne(hardwareId);
-  }
-
-  async transfer(
-    hardwareId: string,
-    newUserId: string,
-    transferredByUserId: string,
-    user: AuthUser,
-    observations?: string,
-  ) {
-    const hardware = await this.prisma.hardwareSupply.findUnique({
-      where: { id: hardwareId },
-    });
-
-    if (!hardware) throw new NotFoundException("Hardware supply not found");
-
-    if (!canAccessOrg(user, hardware.organizationId)) {
-      throw new ForbiddenException("Cannot access hardware from different organization");
-    }
-
-    if (!hardware.userId)
-      throw new Error("Hardware is not assigned to any user");
-
-    const previousUserId = hardware.userId;
-
-    // Mark existing active hardware of the same type for the new user as replaced
-    await this.prisma.hardwareSupply.updateMany({
-      where: {
-        userId: newUserId,
-        type: hardware.type,
-        status: HardwareStatus.active,
-        id: { not: hardwareId },
-      },
-      data: { status: HardwareStatus.replaced },
-    });
-
-    await this.prisma.$transaction([
-      this.prisma.hardwareSupply.update({
-        where: { id: hardwareId },
-        data: {
-          userId: newUserId,
-          assignedDate: new Date(),
-          status: HardwareStatus.active,
-        },
-      }),
-      this.prisma.hardwareActivityLog.create({
-        data: {
-          hardwareId,
-          type: HardwareActivityType.transfer,
-          userId: transferredByUserId,
-          previousUserId,
-          newUserId,
-          observations,
-        },
-      }),
-    ]);
-
-    return this.findOne(hardwareId);
   }
 
   async getErrorsByProduct(user: AuthUser) {
@@ -656,10 +522,24 @@ export class HardwareAdminService {
 
     const where: Prisma.HardwareSupplyWhereInput = {
       ...buildOrgFilter(user),
+      // Exclude linked items (they show nested under their parent)
+      linkedHardwareId: null,
       OR: [
         { serialNumber: null },
         { lotNumber: null },
         { saleDate: null },
+        // Also show parent if any linked child is incomplete
+        {
+          linkedFrom: {
+            some: {
+              OR: [
+                { serialNumber: null },
+                { lotNumber: null },
+                { saleDate: null },
+              ],
+            },
+          },
+        },
       ],
     };
 
@@ -691,6 +571,15 @@ export class HardwareAdminService {
               },
             },
           },
+          linkedFrom: {
+            select: {
+              id: true,
+              type: true,
+              serialNumber: true,
+              lotNumber: true,
+              saleDate: true,
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
         skip,
@@ -714,6 +603,7 @@ export class HardwareAdminService {
   ) {
     const hardware = await this.prisma.hardwareSupply.findUnique({
       where: { id },
+      include: { linkedFrom: { select: { id: true, type: true } } },
     });
 
     if (!hardware) throw new NotFoundException("Hardware supply not found");
@@ -735,12 +625,31 @@ export class HardwareAdminService {
 
       if (duplicate) {
         throw new ConflictException(
-          `Hardware of type ${hardware.type} with serial number ${dto.serialNumber} already exists`,
+          `Ya existe un producto de tipo ${supplyLabel(hardware.type)} con número de serie ${dto.serialNumber}`,
         );
       }
     }
 
-    return this.prisma.hardwareSupply.update({
+    // Validate linked item serial number (e.g. PDM serial)
+    if (dto.linkedSerialNumber && (hardware as any).linkedFrom?.length > 0) {
+      const linked = (hardware as any).linkedFrom[0];
+      const duplicate = await this.prisma.hardwareSupply.findFirst({
+        where: {
+          serialNumber: dto.linkedSerialNumber,
+          type: linked.type,
+          id: { not: linked.id },
+        },
+      });
+
+      if (duplicate) {
+        throw new ConflictException(
+          `Ya existe un producto de tipo ${supplyLabel(linked.type)} con número de serie ${dto.linkedSerialNumber}`,
+        );
+      }
+    }
+
+    // Update the main hardware
+    const updated = await this.prisma.hardwareSupply.update({
       where: { id },
       data: {
         ...(dto.serialNumber !== undefined && { serialNumber: dto.serialNumber }),
@@ -755,7 +664,33 @@ export class HardwareAdminService {
             email: true,
           },
         },
+        linkedFrom: {
+          select: {
+            id: true,
+            type: true,
+            serialNumber: true,
+            lotNumber: true,
+            saleDate: true,
+          },
+        },
       },
     });
+
+    // Update linked items (e.g. PDM, cable) — shared lot number and sale date
+    if ((hardware as any).linkedFrom?.length > 0) {
+      for (const linked of (hardware as any).linkedFrom) {
+        await this.prisma.hardwareSupply.update({
+          where: { id: linked.id },
+          data: {
+            ...(dto.lotNumber !== undefined && { lotNumber: dto.lotNumber }),
+            ...(dto.saleDate !== undefined && { saleDate: parseDate(dto.saleDate) }),
+            // Set linked item serial from the dedicated field
+            ...(dto.linkedSerialNumber !== undefined && { serialNumber: dto.linkedSerialNumber }),
+          },
+        });
+      }
+    }
+
+    return updated;
   }
 }

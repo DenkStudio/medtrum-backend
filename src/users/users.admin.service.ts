@@ -171,6 +171,7 @@ export class UsersAdminService {
                 saleDate: hardware.saleDate,
                 placementDate: hardware.placementDate,
                 userId: created.id,
+                ...(hardware.pdmSerialNumber && { pdmSerialNumber: hardware.pdmSerialNumber }),
               },
               createdBy,
               organizationId

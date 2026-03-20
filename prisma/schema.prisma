@@ -43,12 +43,6 @@ enum HardwareStatus {
 }
 
 
-enum HardwareActivityType {
-  assignment
-  return_hw
-  transfer
-}
-
 enum DeliveryType {
   supply_delivery
   claim_reimbursement
@@ -121,9 +115,7 @@ model Organization {
   updatedAt DateTime         @updatedAt @map("updated_at")
 
   users       User[]
-  doctors     Doctor[]
   educators   Educator[]
-  healthcares Healthcare[]
   localidades Localidad[]
 
   hardware       HardwareSupply[]
@@ -134,31 +126,28 @@ model Organization {
 }
 
 model Healthcare {
-  id             String   @id @default(uuid())
-  tradeName      String   @map("trade_name")
-  legalName      String   @map("legal_name")
-  cuit           String   @unique
-  organizationId String?  @map("organization_id")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(uuid())
+  tradeName String   @map("trade_name")
+  legalName String   @map("legal_name")
+  cuit      String?  @unique @map("cuit")
+  rnos      String?  @unique @map("rnos")
+  sigla     String?  @map("sigla")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  organization Organization? @relation(fields: [organizationId], references: [id])
-  users        User[]
+  users User[]
 
   @@map("healthcares")
 }
 
 model Doctor {
-  id             String   @id @default(uuid())
-  name           String
-  province       String
-  telephone      String?
-  organizationId String?  @map("organization_id")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(uuid())
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  organization Organization? @relation(fields: [organizationId], references: [id])
-  patients     User[]
+  patients User[]
 
   @@map("doctors")
 }
@@ -221,9 +210,6 @@ model User {
 
   hardwareSupplies            HardwareSupply[]
 
-  hardwareActivityLogs        HardwareActivityLog[]        @relation("HardwareLogUser")
-  hardwarePreviousAssignments HardwareActivityLog[]        @relation("HardwarePreviousUser")
-  hardwareNewAssignments      HardwareActivityLog[]        @relation("HardwareNewUser")
   medicalEntries              MedicalEntry[]               @relation("PatientMedicalEntries")
   medicalEntriesCreated       MedicalEntry[]               @relation("MedicalEntryCreatedBy")
   calendarEventsCreated       CalendarEvent[]              @relation("CalendarEventCreatedBy")
@@ -282,9 +268,12 @@ model HardwareSupply {
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
-  organization Organization?         @relation(fields: [organizationId], references: [id])
-  user         User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
-  activityLogs HardwareActivityLog[]
+  linkedHardwareId String?        @map("linked_hardware_id")
+
+  organization   Organization?    @relation(fields: [organizationId], references: [id])
+  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  linkedHardware HardwareSupply?  @relation("LinkedHardware", fields: [linkedHardwareId], references: [id], onDelete: SetNull)
+  linkedFrom     HardwareSupply[] @relation("LinkedHardware")
 
   @@unique([serialNumber, type])
   @@map("hardware_supplies")
@@ -305,12 +294,15 @@ model Delivery {
   lotNumber       Json?        @map("lot_number")
   trackingNumber  String?      @map("tracking_number")
   courierName     String?      @map("courier_name")
+  contactName     String?      @map("contact_name")
+  contactPhone    String?      @map("contact_phone")
+  contactEmail    String?      @map("contact_email")
   date            DateTime     @default(now())
   assignedById    String?      @map("assigned_by")
   observations       Json?       @default("[]")
   photoUrl           String?      @map("photo_url")
-  internalPhotoUrl   String?      @map("internal_photo_url")
-  externalPhotoUrl   String?      @map("external_photo_url")
+  internalPhotoUrls  String[]     @default([]) @map("internal_photo_urls")
+  externalPhotoUrls  String[]     @default([]) @map("external_photo_urls")
   receivedByPatient  Boolean      @default(false) @map("received_by_patient")
   receivedAt         DateTime?    @map("received_at")
   createdAt          DateTime     @default(now()) @map("created_at")
@@ -326,24 +318,6 @@ model Delivery {
 }
 
 
-model HardwareActivityLog {
-  id             String               @id @default(uuid())
-  hardwareId     String               @map("hardware_id")
-  type           HardwareActivityType
-  userId         String               @map("user_id")
-  date           DateTime             @default(now())
-  previousUserId String?              @map("previous_user_id")
-  newUserId      String?              @map("new_user_id")
-  observations   String?
-  createdAt      DateTime             @default(now()) @map("created_at")
-
-  hardware     HardwareSupply @relation(fields: [hardwareId], references: [id], onDelete: Cascade)
-  user         User           @relation("HardwareLogUser", fields: [userId], references: [id])
-  previousUser User?          @relation("HardwarePreviousUser", fields: [previousUserId], references: [id])
-  newUser      User?          @relation("HardwareNewUser", fields: [newUserId], references: [id])
-
-  @@map("hardware_activity_logs")
-}
 
 enum CalendarEventColor {
   sky
