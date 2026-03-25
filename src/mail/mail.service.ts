@@ -48,7 +48,8 @@ export class MailService {
       this.logger.warn("RESEND_API_KEY not set — emails will be disabled");
     }
     this.resend = apiKey ? new Resend(apiKey) : null;
-    this.fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@medtrum.com";
+    const email = process.env.RESEND_FROM_EMAIL || "noreply@medtrum.com";
+    this.fromEmail = `Medtrum <${email}>`;
   }
 
   private wrapHtml(heroLabel: string, body: string): string {
