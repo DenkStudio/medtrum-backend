@@ -622,6 +622,10 @@ export class ClaimsAdminService {
           claimId: claim.id,
           quantity: 1,
           itemName: claim.supply ?? undefined,
+          lotNumber: {
+            lotNumber: extra.replacementLotNumber,
+            serialNumber: extra.replacementSerialNumber,
+          } as any,
           date: new Date(),
           assignedById: user.userId,
           observations: deliveryObs as any,
