@@ -581,18 +581,20 @@ export class ClaimsAdminService {
           claim.user.organizationId ?? undefined,
         );
       } else if (supply === SupplyType.BASE_BOMBA_200U || supply === SupplyType.BASE_BOMBA_300U) {
-        // Base bomba only (no pdmSerialNumber → won't create PDM)
-        await this.hardwareService.create(
-          {
+        // Base bomba only — create directly to avoid auto-creating/replacing PDM
+        await this.prisma.hardwareSupply.create({
+          data: {
             type: supply,
             serialNumber: extra.replacementSerialNumber,
             lotNumber: extra.replacementLotNumber,
             userId: claim.userId,
-            saleDate: extra.replacementPurchaseDate,
+            organizationId: claim.user.organizationId ?? undefined,
+            assignedDate: new Date(),
+            saleDate: extra.replacementPurchaseDate
+              ? parseDate(extra.replacementPurchaseDate)
+              : undefined,
           },
-          user.userId,
-          claim.user.organizationId ?? undefined,
-        );
+        });
       } else if (supply === SupplyType.PDM) {
         // PDM: create directly (not a primary type in hardwareService.create)
         await this.prisma.hardwareSupply.create({
