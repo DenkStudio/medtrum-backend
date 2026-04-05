@@ -176,12 +176,16 @@ export class DeliveriesAdminService {
     return delivery;
   }
 
-  async getDeliveryPhotoSignedUrl(deliveryId: string) {
+  async getDeliveryPhotoSignedUrl(deliveryId: string, user: AuthUser) {
     const delivery = await this.prisma.delivery.findUnique({
       where: { id: deliveryId },
-      select: { internalPhotoUrls: true, externalPhotoUrls: true },
+      select: { internalPhotoUrls: true, externalPhotoUrls: true, organizationId: true },
     });
     if (!delivery) throw new NotFoundException("Delivery not found");
+
+    if (!canAccessOrg(user, delivery.organizationId)) {
+      throw new ForbiddenException("Cannot access delivery from different organization");
+    }
 
     const signUrl = async (path: string | null, bucket: string) => {
       if (!path) return null;
@@ -248,10 +252,12 @@ export class DeliveriesAdminService {
     });
   }
 
-  async getLastContactByUserId(userId: string) {
+  async getLastContactByUserId(userId: string, user: AuthUser) {
+    const orgFilter = buildOrgFilter(user);
     const delivery = await this.prisma.delivery.findFirst({
       where: {
         userId,
+        ...orgFilter,
         OR: [
           { contactName: { not: null } },
           { contactPhone: { not: null } },

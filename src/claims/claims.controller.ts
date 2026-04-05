@@ -20,13 +20,12 @@ import { ClaimsService } from "./claims.service";
 
 @Controller("claims")
 @UseGuards(JwtAuthGuard, RolesGuard)
-export class Claimsontroller {
+export class ClaimsController {
   constructor(private readonly service: ClaimsService) {}
 
   @Post()
   @Roles("patient")
   create(@Body() dto: CreateClaimDto, @CurrentUser() user: { userId: string }) {
-    console.log(user);
     return this.service.create(dto, user.userId);
   }
 

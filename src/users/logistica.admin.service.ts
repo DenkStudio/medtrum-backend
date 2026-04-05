@@ -90,7 +90,7 @@ export class LogisticaAdminService {
   }
 
   async findAll(query: QueryOptionsDto, user: AuthUser) {
-    const { from, to, search } = query;
+    const { page = 1, limit = 20, from, to, search } = query;
     const where: Prisma.UserWhereInput = {
       role: UserRole.logistica,
       ...buildOrgFilter(user),
@@ -106,11 +106,24 @@ export class LogisticaAdminService {
       ];
     }
 
-    return this.prisma.user.findMany({
-      where,
-      include: { organization: true },
-      orderBy: { createdAt: "desc" },
-    });
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        include: { organization: true },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findById(id: string) {

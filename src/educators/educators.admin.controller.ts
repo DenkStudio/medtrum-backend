@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -38,6 +39,16 @@ export class EducatorsAdminController {
   @Roles("admin", "superadmin", "super_educator")
   findById(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.educatorsService.findById(id, user);
+  }
+
+  @Put(":id")
+  @Roles("admin", "superadmin")
+  update(
+    @Param("id") id: string,
+    @Body() body: Partial<CreateEducatorDto>,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.educatorsService.update(id, body, user);
   }
 
   @Delete(":id")

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -35,7 +36,7 @@ export class UsersAdminController {
   ) {
     if (dto.id) {
       const { id, ...updateDto } = dto;
-      return this.usersAdminService.update(id, updateDto);
+      return this.usersAdminService.update(id, updateDto, user);
     }
     return this.usersAdminService.create(dto, user.userId);
   }
@@ -48,8 +49,12 @@ export class UsersAdminController {
 
   @Patch(":id")
   @Roles("superadmin", "admin")
-  update(@Param("id") id: string, @Body() dto: UpdateUserDto) {
-    return this.usersAdminService.update(id, dto);
+  update(
+    @Param("id") id: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.usersAdminService.update(id, dto, user);
   }
 
   @Get()
@@ -80,4 +85,9 @@ export class UsersAdminController {
     return this.usersAdminService.findById(id, user);
   }
 
+  @Delete(":id")
+  @Roles("superadmin")
+  remove(@Param("id") id: string) {
+    return this.usersAdminService.remove(id);
+  }
 }

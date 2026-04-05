@@ -86,7 +86,7 @@ export class SuperEducatorsAdminService {
   }
 
   async findAll(query: QueryOptionsDto) {
-    const { from, to, search } = query;
+    const { page = 1, limit = 20, from, to, search } = query;
     const where: Prisma.UserWhereInput = {
       role: UserRole.super_educator,
     };
@@ -101,13 +101,26 @@ export class SuperEducatorsAdminService {
       ];
     }
 
-    return this.prisma.user.findMany({
-      where,
-      include: {
-        educatorProfile: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        include: {
+          educatorProfile: true,
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findById(id: string) {

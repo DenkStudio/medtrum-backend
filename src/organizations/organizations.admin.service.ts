@@ -18,25 +18,38 @@ export class OrganizationsAdminService {
     return this.prisma.organization.create({ data });
   }
 
-  findAll(query: QueryOptionsDto) {
-    const { from, to } = query;
+  async findAll(query: QueryOptionsDto) {
+    const { page = 1, limit = 20, from, to } = query;
     const where: Prisma.OrganizationWhereInput = {};
 
     const dateFilter = buildDateRangeFilter(from, to);
     if (dateFilter) where.createdAt = dateFilter;
 
-    return this.prisma.organization.findMany({
-      where,
-      include: {
-        users: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            role: true,
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.organization.count({ where }),
+      this.prisma.organization.findMany({
+        where,
+        include: {
+          users: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              role: true,
+            },
           },
         },
-      },
-    });
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

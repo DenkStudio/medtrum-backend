@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { HealthcareAdminService } from "./healthcare.admin.service";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
@@ -23,5 +23,11 @@ export class HealthcareAdminController {
   @Roles("admin", "superadmin", "educator", "super_educator")
   findAll(@Query() query: QueryOptionsDto, @CurrentUser() user: AuthUser) {
     return this.healthcareService.findAll(query, user);
+  }
+
+  @Get(":id")
+  @Roles("admin", "superadmin")
+  findById(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.healthcareService.findById(id, user);
   }
 }

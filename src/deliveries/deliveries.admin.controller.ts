@@ -45,8 +45,11 @@ export class DeliveriesAdminController {
 
   @Get("user/:userId/last-contact")
   @Roles("admin", "superadmin", "logistica")
-  getLastContact(@Param("userId") userId: string) {
-    return this.service.getLastContactByUserId(userId);
+  getLastContact(
+    @Param("userId") userId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.getLastContactByUserId(userId, user);
   }
 
   @Patch(":id/observations")
@@ -61,8 +64,11 @@ export class DeliveriesAdminController {
 
   @Get(":id/photo-url")
   @Roles("admin", "superadmin", "educator", "super_educator", "logistica")
-  getPhotoUrl(@Param("id") id: string) {
-    return this.service.getDeliveryPhotoSignedUrl(id);
+  getPhotoUrl(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.getDeliveryPhotoSignedUrl(id, user);
   }
 
   @Get(":id")

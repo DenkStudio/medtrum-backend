@@ -15,7 +15,8 @@ import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import { ClaimsChartQueryDto } from "./dto/claims-chart-query.dto";
-import { ClaimStatus } from "@prisma/client";
+import { SetClaimStatusDto } from "./dto/set-status.dto";
+import { ReimburseClaimDto } from "./dto/reimburse-claim.dto";
 import { CurrentUser } from "../common/decorators/user.decorator";
 import { AuthUser } from "../common/helpers/organization-filter.helper";
 
@@ -53,26 +54,23 @@ export class ClaimsAdminController {
     res.end(buffer);
   }
 
-  @Get(":claimId")
-  @Roles("admin", "superadmin", "educator", "super_educator", "logistica")
-  findOne(@Param("claimId") claimId: string, @CurrentUser() user: AuthUser) {
-    return this.service.findOne(claimId, user);
-  }
-
   @Get("user/:userId")
   @Roles("admin", "superadmin", "educator", "super_educator", "logistica")
   findByUserId(@Param("userId") userId: string, @CurrentUser() user: AuthUser) {
     return this.service.findByUserId(userId, user);
   }
 
+  @Get(":claimId")
+  @Roles("admin", "superadmin", "educator", "super_educator", "logistica")
+  findOne(@Param("claimId") claimId: string, @CurrentUser() user: AuthUser) {
+    return this.service.findOne(claimId, user);
+  }
+
   @Patch(":id/status")
   @Roles("admin", "superadmin", "educator", "super_educator", "logistica")
   setStatus(
     @Param("id") id: string,
-    @Body() body: {
-      status: ClaimStatus;
-      resolutionMessage?: string;
-    },
+    @Body() body: SetClaimStatusDto,
     @CurrentUser() user: AuthUser
   ) {
     return this.service.setStatus(
@@ -87,23 +85,7 @@ export class ClaimsAdminController {
   @Roles("admin", "superadmin", "logistica")
   reimburse(
     @Param("id") id: string,
-    @Body() body: {
-      qty: number;
-      daysReimbursed?: number;
-      resolutionMessage?: string;
-      returnedLots?: { lotNumber: string; qty: number }[];
-      reimbursementPhotoUrl?: string;
-      reimbursementPhotoUrls?: string[];
-      trackingLink?: string;
-      shippingDate?: string;
-      deliveryPhotoUrls?: string[];
-      contactName?: string;
-      contactPhone?: string;
-      contactEmail?: string;
-      replacementSerialNumber?: string;
-      replacementLotNumber?: string;
-      replacementPurchaseDate?: string;
-    },
+    @Body() body: ReimburseClaimDto,
     @CurrentUser() user: AuthUser
   ) {
     return this.service.reimburse(

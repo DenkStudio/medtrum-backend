@@ -117,7 +117,15 @@ export class ClaimsAdminService {
 
     const dateFilter = buildDateRangeFilter(from, to);
     if (dateFilter) where.createdAt = dateFilter;
-    if (status) {
+
+    if (user.role === "logistica") {
+      const allowed: ClaimStatus[] = ["approved", "reimbursed"];
+      if (status && allowed.includes(status as ClaimStatus)) {
+        where.status = status as ClaimStatus;
+      } else {
+        where.status = { in: allowed };
+      }
+    } else if (status) {
       where.status = status as ClaimStatus;
     }
 
@@ -270,10 +278,25 @@ export class ClaimsAdminService {
       where: { id: claimId },
       include: { user: { include: { localidad: true } }, deliveries: { include: { assignedBy: { select: { id: true, fullName: true, email: true } } } }, resolvedBy: { select: { id: true, fullName: true, email: true } }, reimbursedBy: { select: { id: true, fullName: true, email: true } } },
     });
+
+    if (claim && user?.orgId && claim.user?.organizationId !== user.orgId) {
+      throw new ForbiddenException("No tiene acceso a este reclamo");
+    }
+
     return claim;
   }
 
   async findByUserId(userId: string, user?: AuthUser) {
+    if (user?.orgId) {
+      const targetUser = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { organizationId: true },
+      });
+      if (targetUser && targetUser.organizationId !== user.orgId) {
+        throw new ForbiddenException("No tiene acceso a los reclamos de este usuario");
+      }
+    }
+
     return this.prisma.claim.findMany({
       where: { userId },
       include: { user: true, deliveries: true, resolvedBy: { select: { id: true, fullName: true, email: true } }, reimbursedBy: { select: { id: true, fullName: true, email: true } } },
@@ -293,10 +316,26 @@ export class ClaimsAdminService {
     });
     if (!claim) throw new NotFoundException("Claim not found");
 
+    // Validate status transitions
+    const allowedTransitions: Record<string, ClaimStatus[]> = {
+      pending: ["approved", "rejected"],
+      approved: ["reimbursed", "annulled"],
+      reimbursed: ["received", "annulled"],
+    };
+    const allowed = allowedTransitions[claim.status];
+    if (!allowed || !allowed.includes(status)) {
+      throw new BadRequestException(
+        `No se puede cambiar el estado de "${claim.status}" a "${status}"`
+      );
+    }
+
+    const terminalStatuses: ClaimStatus[] = ["approved", "rejected", "annulled", "reimbursed"];
+    const isTerminal = terminalStatuses.includes(status);
+
     const updateData: Prisma.ClaimUpdateInput = {
       status,
-      resolvedAt: new Date(),
-      ...(user && { resolvedBy: { connect: { id: user.userId } } }),
+      ...(isTerminal && { resolvedAt: new Date() }),
+      ...(isTerminal && user && { resolvedBy: { connect: { id: user.userId } } }),
     };
 
     if (resolutionMessage !== undefined) {
@@ -317,12 +356,6 @@ export class ClaimsAdminService {
     }
 
     if (status === "annulled") {
-      if (claim.status !== "approved" && claim.status !== "reimbursed") {
-        throw new BadRequestException(
-          "Solo se pueden anular reclamos aprobados o reintegrados"
-        );
-      }
-
       if (
         claim.supply === SupplyType.SENSOR ||
         claim.supply === SupplyType.PARCHE_200U ||
@@ -340,6 +373,83 @@ export class ClaimsAdminService {
             balanceDelta,
             claim.supply,
           );
+        }
+      }
+
+      // Reverse hardware replacements if the claim was reimbursed with hardware
+      if (
+        claim.status === "reimbursed" &&
+        isReplacementHardwareType(claim.supply)
+      ) {
+        // Find the replacement serial number from the delivery
+        const hwDelivery = claim.deliveries.find(
+          (d) => d.type === "claim_reimbursement" && d.lotNumber,
+        );
+        if (hwDelivery) {
+          const lotData = hwDelivery.lotNumber as any;
+          const replacementSerial = lotData?.serialNumber;
+
+          if (replacementSerial) {
+            // Determine the type of hardware that was created
+            let createdType = claim.supply!;
+            if (createdType === SupplyType.CABLE_TRANSMISOR) {
+              createdType = SupplyType.TRANSMISOR;
+            }
+
+            // Find the replacement hardware
+            const replacementHw = await this.prisma.hardwareSupply.findFirst({
+              where: {
+                serialNumber: replacementSerial,
+                type: createdType,
+                userId: claim.userId,
+              },
+            });
+
+            if (replacementHw) {
+              // Delete linked items (CABLE_TRANSMISOR linked to TRANSMISOR, etc.)
+              await this.prisma.hardwareSupply.deleteMany({
+                where: { linkedHardwareId: replacementHw.id },
+              });
+
+              // Delete the replacement hardware itself
+              await this.prisma.hardwareSupply.delete({
+                where: { id: replacementHw.id },
+              });
+            }
+          }
+
+          // Re-activate the most recently retired hardware of the same type(s)
+          let typesToReactivate: SupplyType[];
+          if (
+            claim.supply === SupplyType.TRANSMISOR ||
+            claim.supply === SupplyType.CABLE_TRANSMISOR
+          ) {
+            typesToReactivate = [SupplyType.TRANSMISOR, SupplyType.CABLE_TRANSMISOR];
+          } else if (
+            claim.supply === SupplyType.BASE_BOMBA_200U ||
+            claim.supply === SupplyType.BASE_BOMBA_300U
+          ) {
+            typesToReactivate = [claim.supply];
+          } else {
+            typesToReactivate = [SupplyType.PDM];
+          }
+
+          // Only reactivate hardware retired around the time the claim was resolved
+          const reactivateWhere: Prisma.HardwareSupplyWhereInput = {
+            userId: claim.userId,
+            type: { in: typesToReactivate },
+            status: HardwareStatus.retired,
+          };
+          if (claim.resolvedAt) {
+            const retiredAfter = new Date(claim.resolvedAt.getTime() - 60_000);
+            const retiredBefore = new Date(claim.resolvedAt.getTime() + 60_000);
+            reactivateWhere.updatedAt = { gte: retiredAfter, lte: retiredBefore };
+          }
+
+          await this.prisma.hardwareSupply.updateMany({
+            where: reactivateWhere,
+            data: { status: HardwareStatus.active },
+          });
         }
       }
 
@@ -482,7 +592,7 @@ export class ClaimsAdminService {
             data: {
               type: "claim_reimbursement",
               userId: claim.userId,
-              organizationId: user.orgId ?? null,
+              organizationId: claim.user?.organizationId ?? null,
               claimId: claim.id,
               quantity: qty,
               daysReimbursed: daysReimbursed ?? undefined,
@@ -620,7 +730,7 @@ export class ClaimsAdminService {
         data: {
           type: "claim_reimbursement",
           userId: claim.userId,
-          organizationId: user.orgId ?? null,
+          organizationId: claim.user?.organizationId ?? null,
           claimId: claim.id,
           quantity: 1,
           itemName: claim.supply ?? undefined,

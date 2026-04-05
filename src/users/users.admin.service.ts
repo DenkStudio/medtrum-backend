@@ -11,6 +11,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
 import { UserRole, Prisma } from "@prisma/client";
 import { QueryOptionsDto } from "src/common/query/query-options.dto";
 import {
@@ -329,11 +330,24 @@ export class UsersAdminService {
     return found;
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: UpdateUserDto, authUser: AuthUser) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException("User not found");
 
+    if (!canAccessOrg(authUser, user.organizationId)) {
+      throw new ForbiddenException("Cannot update user from different organization");
+    }
+
     const updateData: Prisma.UserUpdateInput = {};
+
+    // Check local DB for email duplicates BEFORE updating Supabase
+    if (dto.email) {
+      const exists = await this.prisma.user.findFirst({
+        where: { email: dto.email, NOT: { id } },
+      });
+      if (exists) throw new ConflictException("Email already in use");
+      updateData.email = dto.email;
+    }
 
     // Sync email/password changes to Supabase
     if (user.supabaseId && (dto.email || dto.password)) {
@@ -352,14 +366,6 @@ export class UsersAdminService {
           `Failed to update Supabase user: ${error.message}`
         );
       }
-    }
-
-    if (dto.email) {
-      const exists = await this.prisma.user.findFirst({
-        where: { email: dto.email, NOT: { id } },
-      });
-      if (exists) throw new ConflictException("Email already in use");
-      updateData.email = dto.email;
     }
 
     if (dto.role) {
@@ -436,6 +442,14 @@ export class UsersAdminService {
 
     if (dto.familyContactRelationship !== undefined) {
       updateData.familyContactRelationship = dto.familyContactRelationship;
+    }
+
+    if (dto.balanceDaysSensor !== undefined) {
+      updateData.balanceDaysSensor = dto.balanceDaysSensor;
+    }
+
+    if (dto.balanceDaysParche !== undefined) {
+      updateData.balanceDaysParche = dto.balanceDaysParche;
     }
 
     const updated = await this.prisma.user.update({

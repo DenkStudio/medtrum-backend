@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -39,4 +41,19 @@ export class DoctorsAdminController {
     return this.doctorsService.findById(id, user);
   }
 
+  @Put(":id")
+  @Roles("admin", "superadmin")
+  update(
+    @Param("id") id: string,
+    @Body() body: Partial<CreateDoctorDto>,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.doctorsService.update(id, body, user);
+  }
+
+  @Delete(":id")
+  @Roles("superadmin")
+  delete(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.doctorsService.delete(id, user);
+  }
 }

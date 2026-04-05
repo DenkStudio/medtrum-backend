@@ -30,7 +30,7 @@ export class HealthcareAdminService {
   }
 
   async findAll(query: QueryOptionsDto, user: AuthUser) {
-    const { from, to, search } = query;
+    const { page = 1, limit = 20, from, to, search } = query;
     const where: Prisma.HealthcareWhereInput = {};
 
     const dateFilter = buildDateRangeFilter(from, to);
@@ -44,19 +44,32 @@ export class HealthcareAdminService {
       ];
     }
 
-    return this.prisma.healthcare.findMany({
-      where,
-      include: {
-        users: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            role: true,
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.healthcare.count({ where }),
+      this.prisma.healthcare.findMany({
+        where,
+        include: {
+          users: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              role: true,
+            },
           },
         },
-      },
-    });
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findById(id: string, user: AuthUser) {

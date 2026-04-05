@@ -30,7 +30,7 @@ export class EducatorsAdminService {
   }
 
   async findAll(query: QueryOptionsDto, user: AuthUser) {
-    const { from, to, organization } = query;
+    const { page = 1, limit = 20, from, to, organization, search } = query;
     const where: Prisma.EducatorWhereInput = {
       ...buildOrgFilter(user),
       ...(organization && { organizationId: organization }),
@@ -39,25 +39,42 @@ export class EducatorsAdminService {
     const dateFilter = buildDateRangeFilter(from, to);
     if (dateFilter) where.createdAt = dateFilter;
 
-    return this.prisma.educator.findMany({
-      where,
-      include: {
-        patients: {
-          where: { role: "patient" },
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            role: true,
-            phoneNumber: true,
-            dni: true,
-            address: true,
-            birthDate: true,
-            province: true,
+    if (search) {
+      where.name = { contains: search, mode: "insensitive" };
+    }
+
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.educator.count({ where }),
+      this.prisma.educator.findMany({
+        where,
+        include: {
+          patients: {
+            where: { role: "patient" },
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              role: true,
+              phoneNumber: true,
+              dni: true,
+              address: true,
+              birthDate: true,
+              province: true,
+            },
           },
         },
-      },
-    });
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findById(id: string, user: AuthUser) {

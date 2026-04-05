@@ -258,7 +258,7 @@ export class HardwareAdminService {
   }
 
   async findAll(query: QueryOptionsDto, user: AuthUser) {
-    const { from, to, search } = query;
+    const { page = 1, limit = 20, from, to, search } = query;
     const where: Prisma.HardwareSupplyWhereInput = { ...buildOrgFilter(user) };
 
     const dateFilter = buildDateRangeFilter(from, to);
@@ -270,20 +270,34 @@ export class HardwareAdminService {
       };
     }
 
-    return this.prisma.hardwareSupply.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            doctor: true,
-            healthcare: true,
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.hardwareSupply.count({ where }),
+      this.prisma.hardwareSupply.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              doctor: true,
+              healthcare: true,
+            },
           },
         },
-      },
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findByUserId(userId: string, user: AuthUser) {
