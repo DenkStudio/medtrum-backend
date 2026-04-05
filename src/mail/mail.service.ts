@@ -36,6 +36,16 @@ interface SupplyDeliveryEmailParams {
   observations?: string;
 }
 
+interface ClaimEducatorNotificationParams {
+  educatorEmail: string;
+  educatorName?: string;
+  patientName: string;
+  patientDni?: string;
+  supplyName: string;
+  claimDate: string;
+  description?: string;
+}
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -392,6 +402,93 @@ export class MailService {
     } catch (error: any) {
       this.logger.error(
         `Failed to send reimbursement email to ${patientEmail}: ${error?.message}`,
+      );
+    }
+  }
+
+  async sendClaimEducatorNotification(params: ClaimEducatorNotificationParams) {
+    const {
+      educatorEmail,
+      educatorName,
+      patientName,
+      patientDni,
+      supplyName,
+      claimDate,
+      description,
+    } = params;
+
+    const formattedDate = new Date(claimDate).toLocaleDateString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+
+    const descriptionRow = description
+      ? `<tr>
+          <td style="padding: 8px 12px; color: #4A6B5E; font-size: 14px; border-bottom: 1px solid #E8F0ED;">Descripción</td>
+          <td style="padding: 8px 12px; font-size: 14px; color: #0D2B22; border-bottom: 1px solid #E8F0ED;">${description}</td>
+        </tr>`
+      : "";
+
+    const dniRow = patientDni
+      ? `<tr>
+          <td style="padding: 8px 12px; color: #4A6B5E; font-size: 14px; border-bottom: 1px solid #E8F0ED;">DNI</td>
+          <td style="padding: 8px 12px; font-size: 14px; color: #0D2B22; border-bottom: 1px solid #E8F0ED;">${patientDni}</td>
+        </tr>`
+      : "";
+
+    const html = this.wrapHtml("Nuevo reclamo de paciente", `
+      <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #0D2B22; line-height: 1.3;">
+        ¡Hola${educatorName ? `, ${educatorName}` : ""}!
+      </h1>
+      <p style="margin: 0 0 28px; font-size: 15px; color: #4A6B5E; line-height: 1.8;">
+        Te informamos que tu paciente <strong style="color: #0D4A3A;">${patientName}</strong> ha realizado un reclamo que requiere tu atención.
+      </p>
+
+      <!-- Detail card -->
+      <div style="background: #F4FAF7; border-radius: 10px; border: 1px solid #C8E6D8; padding: 24px; margin-bottom: 32px;">
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 700; color: #0D4A3A;">Detalle del reclamo</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 12px; color: #4A6B5E; font-size: 14px; border-bottom: 1px solid #E8F0ED;">Paciente</td>
+            <td style="padding: 8px 12px; font-size: 14px; color: #0D2B22; font-weight: 600; border-bottom: 1px solid #E8F0ED;">${patientName}</td>
+          </tr>
+          ${dniRow}
+          <tr>
+            <td style="padding: 8px 12px; color: #4A6B5E; font-size: 14px; border-bottom: 1px solid #E8F0ED;">Insumo reclamado</td>
+            <td style="padding: 8px 12px; font-size: 14px; color: #0D2B22; font-weight: 600; border-bottom: 1px solid #E8F0ED;">${supplyName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; color: #4A6B5E; font-size: 14px; border-bottom: 1px solid #E8F0ED;">Fecha del reclamo</td>
+            <td style="padding: 8px 12px; font-size: 14px; color: #0D2B22; border-bottom: 1px solid #E8F0ED;">${formattedDate}</td>
+          </tr>
+          ${descriptionRow}
+        </table>
+      </div>
+
+      <div style="border-top: 1px solid #E8F0ED; margin-bottom: 24px;"></div>
+
+      <p style="font-size: 13px; color: #90A89E; line-height: 1.7; margin: 0;">
+        Este es un aviso automático. Ingresá a la plataforma para más detalles sobre el reclamo.
+      </p>
+    `);
+
+    if (!this.resend) {
+      this.logger.warn(`Email skipped (no API key): claim educator notification to ${educatorEmail}`);
+      return;
+    }
+
+    try {
+      await this.resend.emails.send({
+        from: this.fromEmail,
+        to: educatorEmail,
+        subject: "Nuevo reclamo de paciente - Medtrum",
+        html,
+      });
+      this.logger.log(`Claim educator notification sent to ${educatorEmail}`);
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to send claim educator notification to ${educatorEmail}: ${error?.message}`,
       );
     }
   }

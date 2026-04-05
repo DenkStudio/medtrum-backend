@@ -30,11 +30,19 @@ export class HealthcareAdminService {
   }
 
   async findAll(query: QueryOptionsDto, user: AuthUser) {
-    const { from, to } = query;
+    const { from, to, search } = query;
     const where: Prisma.HealthcareWhereInput = {};
 
     const dateFilter = buildDateRangeFilter(from, to);
     if (dateFilter) where.createdAt = dateFilter;
+
+    if (search) {
+      where.OR = [
+        { tradeName: { contains: search, mode: "insensitive" } },
+        { legalName: { contains: search, mode: "insensitive" } },
+        { sigla: { contains: search, mode: "insensitive" } },
+      ];
+    }
 
     return this.prisma.healthcare.findMany({
       where,
