@@ -27,10 +27,13 @@ export class DoctorsAdminService {
     if (dateFilter) where.createdAt = dateFilter;
 
     if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: "insensitive" } },
-        { lastName: { contains: search, mode: "insensitive" } },
-      ];
+      const terms = search.trim().split(/\s+/);
+      where.AND = terms.map((term) => ({
+        OR: [
+          { firstName: { contains: term, mode: "insensitive" as const } },
+          { lastName: { contains: term, mode: "insensitive" as const } },
+        ],
+      }));
     }
 
     const [total, data] = await this.prisma.$transaction([
