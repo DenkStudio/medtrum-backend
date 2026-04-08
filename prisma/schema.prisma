@@ -229,6 +229,7 @@ model Claim {
   status                  ClaimStatus @default(pending)
   description             String?
   lotNumber               String?     @map("lot_number")
+  serialNumber            String?     @map("serial_number")
   claimCategory           SupplyType?  @map("claim_category")
   errorCode               ClaimErrorCode? @map("error_code")
   photoUrl                String?     @map("photo_url")

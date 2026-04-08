@@ -6,6 +6,7 @@ export class CreateClaimDto {
   @IsOptional() daysClaimed!: number;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() lotNumber?: string;
+  @IsOptional() @IsString() serialNumber?: string;
   @IsOptional() @IsEnum(SupplyType) claimCategory?: SupplyType;
   @IsOptional() @IsEnum(ClaimErrorCode) errorCode?: ClaimErrorCode;
   @IsOptional() @IsString() photoUrl?: string;
