@@ -563,6 +563,9 @@ export class UsersAdminService {
         healthcare: true,
         doctor: true,
         localidad: true,
+        organization: true,
+        educator: true,
+        hardwareSupplies: { where: { status: "active" }, orderBy: { type: "asc" } },
       },
       orderBy: buildOrderBy(query?.sort),
     });
