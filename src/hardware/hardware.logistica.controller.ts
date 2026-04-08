@@ -18,7 +18,7 @@ import { UpdateHardwareLogisticaDto } from "./dto/update-hardware-logistica.dto"
 
 @Controller("logistica/hardware")
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("logistica")
+@Roles("logistica", "superadmin", "admin", "educator", "super_educator")
 export class HardwareLogisticaController {
   constructor(private readonly service: HardwareAdminService) {}
 
