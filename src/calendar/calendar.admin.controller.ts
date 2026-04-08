@@ -23,19 +23,19 @@ export class CalendarAdminController {
   constructor(private readonly service: CalendarAdminService) {}
 
   @Get()
-  @Roles("admin", "superadmin", "educator", "super_educator")
+  @Roles("educator", "super_educator")
   findAll(@Query() query: CalendarQueryDto, @CurrentUser() user: AuthUser) {
     return this.service.findAll(query, user);
   }
 
   @Post()
-  @Roles("admin", "superadmin", "educator", "super_educator")
+  @Roles("educator", "super_educator")
   create(@Body() dto: CreateCalendarEventDto, @CurrentUser() user: AuthUser) {
     return this.service.create(dto, user);
   }
 
   @Delete(":id")
-  @Roles("admin", "superadmin", "educator", "super_educator")
+  @Roles("educator", "super_educator")
   remove(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.service.remove(id, user);
   }

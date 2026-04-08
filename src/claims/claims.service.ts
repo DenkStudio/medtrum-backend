@@ -172,7 +172,6 @@ export class ClaimsService {
         daysClaimed: true,
         status: true,
         description: true,
-        needChange: true,
         lotNumber: true,
         photoUrl: true,
         failureDate: true,
@@ -203,31 +202,4 @@ export class ClaimsService {
     });
   }
 
-  async setStatus(id: string, status: ClaimStatus) {
-    const claim = await this.prisma.claim.findUnique({ where: { id } });
-    if (!claim) throw new NotFoundException("Claim not found");
-
-    await this.prisma.claim.update({
-      where: { id },
-      data: { status },
-    });
-
-    if (
-      status === "approved" &&
-      (claim.supply === SupplyType.SENSOR ||
-        claim.supply === SupplyType.PARCHE_200U ||
-        claim.supply === SupplyType.PARCHE_300U)
-    ) {
-      await this.users.updateBalanceDays(
-        claim.userId,
-        claim.daysClaimed ?? 0,
-        claim.supply
-      );
-    }
-
-    return this.prisma.claim.findUnique({
-      where: { id },
-      include: { user: true },
-    });
-  }
 }

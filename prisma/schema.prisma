@@ -173,8 +173,7 @@ model User {
   id                String    @id @default(uuid())
   supabaseId        String?   @unique @map("supabase_id")
   email             String    @unique
-  passwordHash      String?   @map("password_hash")
-  role              UserRole  @default(admin)
+  role              UserRole  @default(patient)
   organizationId    String?   @map("organization_id")
   healthcareId      String?   @map("healthcare_id")
   fullName          String?   @map("full_name")
@@ -214,6 +213,11 @@ model User {
   medicalEntriesCreated       MedicalEntry[]               @relation("MedicalEntryCreatedBy")
   calendarEventsCreated       CalendarEvent[]              @relation("CalendarEventCreatedBy")
 
+  @@index([organizationId])
+  @@index([role])
+  @@index([healthcareId])
+  @@index([doctorId])
+  @@index([educatorId])
   @@map("users")
 }
 
@@ -224,7 +228,6 @@ model Claim {
   daysClaimed             Int?        @map("days_claimed")
   status                  ClaimStatus @default(pending)
   description             String?
-  needChange              Boolean     @default(false) @map("need_change")
   lotNumber               String?     @map("lot_number")
   claimCategory           SupplyType?  @map("claim_category")
   errorCode               ClaimErrorCode? @map("error_code")
@@ -250,6 +253,9 @@ model Claim {
   reimbursedBy User?             @relation("ClaimReimbursedBy", fields: [reimbursedById], references: [id])
   deliveries   Delivery[]
 
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
   @@map("claims")
 }
 
@@ -276,6 +282,10 @@ model HardwareSupply {
   linkedFrom     HardwareSupply[] @relation("LinkedHardware")
 
   @@unique([serialNumber, type])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([status])
+  @@index([type])
   @@map("hardware_supplies")
 }
 
@@ -314,6 +324,9 @@ model Delivery {
   claim        Claim?            @relation(fields: [claimId], references: [id], onDelete: SetNull)
   assignedBy   User?             @relation("DeliveryAssignedBy", fields: [assignedById], references: [id])
 
+  @@index([userId])
+  @@index([claimId])
+  @@index([organizationId])
   @@map("deliveries")
 }
 
@@ -343,6 +356,8 @@ model CalendarEvent {
   organization Organization? @relation(fields: [organizationId], references: [id])
   createdBy    User          @relation("CalendarEventCreatedBy", fields: [createdById], references: [id])
 
+  @@index([organizationId])
+  @@index([startDate])
   @@map("calendar_events")
 }
 
@@ -358,6 +373,7 @@ model MedicalEntry {
   patient   User @relation("PatientMedicalEntries", fields: [patientId], references: [id], onDelete: Cascade)
   createdBy User @relation("MedicalEntryCreatedBy", fields: [createdById], references: [id])
 
+  @@index([patientId])
   @@map("medical_entries")
 }
 

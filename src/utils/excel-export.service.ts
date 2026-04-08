@@ -61,8 +61,8 @@ export class ExcelExportService {
           email: user.email || "",
           balanceSensor: user.balanceDaysSensor ?? 0,
           balanceParche: user.balanceDaysParche ?? 0,
-          doctor: user.doctor?.name || "-",
-          healthcare: user.healthcare?.name || "-",
+          doctor: user.doctor ? `${user.doctor.lastName} ${user.doctor.firstName}` : "-",
+          healthcare: user.healthcare?.tradeName || "-",
         });
       });
     }

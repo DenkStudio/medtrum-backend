@@ -142,6 +142,13 @@ export class AdminsAdminService {
   async update(id: string, dto: Partial<CreateAdminDto>) {
     const admin = await this.findById(id);
 
+    if (dto.email) {
+      const exists = await this.prisma.user.findFirst({
+        where: { email: dto.email, NOT: { id } },
+      });
+      if (exists) throw new ConflictException("Email already in use");
+    }
+
     if (admin.supabaseId && (dto.email || dto.password)) {
       const supabaseUpdate: { email?: string; password?: string } = {};
       if (dto.email) supabaseUpdate.email = dto.email;
@@ -157,13 +164,6 @@ export class AdminsAdminService {
           `Failed to update Supabase user: ${error.message}`
         );
       }
-    }
-
-    if (dto.email) {
-      const exists = await this.prisma.user.findFirst({
-        where: { email: dto.email, NOT: { id } },
-      });
-      if (exists) throw new ConflictException("Email already in use");
     }
 
     const { password, sendInvite, organizationId, ...updateFields } = dto;

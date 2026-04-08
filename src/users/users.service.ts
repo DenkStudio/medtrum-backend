@@ -11,19 +11,20 @@ export class UsersService {
     delta?: number,
     supply?: SupplyType
   ) {
-    const patient = await this.prisma.user.findUnique({
-      where: { id: patientId },
-    });
-    if (!patient) throw new NotFoundException("Patient not found");
-
-    const fieldName = supply === SupplyType.SENSOR
-      ? "balanceDaysSensor"
-      : "balanceDaysParche"; // PARCHE_200U and PARCHE_300U both use balanceDaysParche
-    const currentBalance = (patient[fieldName] ?? 0) + (delta ?? 0);
+    // Only SENSOR, PARCHE_200U, and PARCHE_300U affect balance
+    let fieldName: "balanceDaysSensor" | "balanceDaysParche";
+    if (supply === SupplyType.SENSOR) {
+      fieldName = "balanceDaysSensor";
+    } else if (supply === SupplyType.PARCHE_200U || supply === SupplyType.PARCHE_300U) {
+      fieldName = "balanceDaysParche";
+    } else {
+      // TRANSMISOR, BASE_BOMBA_200U, BASE_BOMBA_300U, CABLE_TRANSMISOR, PDM — no balance modification
+      return;
+    }
 
     const updatedUser = await this.prisma.user.update({
       where: { id: patientId },
-      data: { [fieldName]: currentBalance },
+      data: { [fieldName]: { increment: delta ?? 0 } },
     });
 
     return {

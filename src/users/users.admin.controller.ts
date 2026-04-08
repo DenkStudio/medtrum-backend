@@ -30,14 +30,10 @@ export class UsersAdminController {
 
   @Post()
   @Roles("superadmin", "admin", "educator", "super_educator")
-  createOrUpdate(
-    @Body() dto: CreateUserDto & { id?: string },
+  create(
+    @Body() dto: CreateUserDto,
     @CurrentUser() user: AuthUser
   ) {
-    if (dto.id) {
-      const { id, ...updateDto } = dto;
-      return this.usersAdminService.update(id, updateDto, user);
-    }
     return this.usersAdminService.create(dto, user.userId);
   }
 

@@ -67,7 +67,7 @@ export class ClaimsAdminController {
   }
 
   @Patch(":id/status")
-  @Roles("admin", "superadmin", "educator", "super_educator", "logistica")
+  @Roles("admin", "superadmin", "educator", "super_educator")
   setStatus(
     @Param("id") id: string,
     @Body() body: SetClaimStatusDto,

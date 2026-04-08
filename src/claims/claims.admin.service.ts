@@ -253,7 +253,7 @@ export class ClaimsAdminService {
         patientName: claim.user.fullName ?? "-",
         dni: claim.user.dni ?? "-",
         obraSocial: (claim.user as any).healthcare?.tradeName ?? "-",
-        doctor: (claim.user as any).doctor?.name ?? "-",
+        doctor: (claim.user as any).doctor ? `${(claim.user as any).doctor.lastName} ${(claim.user as any).doctor.firstName}` : "-",
         province: claim.user.province ?? "-",
         localidad: (claim.user as any).localidad?.name ?? "-",
         supply: claim.supply ? (SUPPLY_LABELS[claim.supply] ?? claim.supply) : "-",
@@ -332,164 +332,170 @@ export class ClaimsAdminService {
     const terminalStatuses: ClaimStatus[] = ["approved", "rejected", "annulled", "reimbursed"];
     const isTerminal = terminalStatuses.includes(status);
 
-    const updateData: Prisma.ClaimUpdateInput = {
-      status,
-      ...(isTerminal && { resolvedAt: new Date() }),
-      ...(isTerminal && user && { resolvedBy: { connect: { id: user.userId } } }),
-    };
+    await this.prisma.$transaction(async (tx) => {
+      const updateData: Prisma.ClaimUpdateInput = {
+        status,
+        ...(isTerminal && { resolvedAt: new Date() }),
+        ...(isTerminal && user && { resolvedBy: { connect: { id: user.userId } } }),
+      };
 
-    if (resolutionMessage !== undefined) {
-      updateData.resolutionMessage = resolutionMessage;
-    }
+      if (resolutionMessage !== undefined) {
+        updateData.resolutionMessage = resolutionMessage;
+      }
 
-    if (
-      status === "rejected" &&
-      (claim.supply === SupplyType.SENSOR ||
-        claim.supply === SupplyType.PARCHE_200U ||
-        claim.supply === SupplyType.PARCHE_300U)
-    ) {
-      await this.users.updateBalanceDays(
-        claim.userId,
-        -(claim.daysClaimed ?? 0),
-        claim.supply
-      );
-    }
-
-    if (status === "annulled") {
       if (
-        claim.supply === SupplyType.SENSOR ||
-        claim.supply === SupplyType.PARCHE_200U ||
-        claim.supply === SupplyType.PARCHE_300U
+        status === "rejected" &&
+        (claim.supply === SupplyType.SENSOR ||
+          claim.supply === SupplyType.PARCHE_200U ||
+          claim.supply === SupplyType.PARCHE_300U)
       ) {
-        const totalDaysReimbursed = claim.deliveries.reduce(
-          (sum, d) => sum + (d.daysReimbursed ?? 0),
-          0,
-        );
+        const fieldName = claim.supply === SupplyType.SENSOR
+          ? "balanceDaysSensor"
+          : "balanceDaysParche";
+        await tx.user.update({
+          where: { id: claim.userId },
+          data: { [fieldName]: { increment: +(claim.daysClaimed ?? 0) } },
+        });
+      }
 
-        const balanceDelta = (claim.daysClaimed ?? 0) - totalDaysReimbursed;
-        if (balanceDelta !== 0) {
-          await this.users.updateBalanceDays(
-            claim.userId,
-            balanceDelta,
-            claim.supply,
+      if (status === "annulled") {
+        if (
+          claim.supply === SupplyType.SENSOR ||
+          claim.supply === SupplyType.PARCHE_200U ||
+          claim.supply === SupplyType.PARCHE_300U
+        ) {
+          const totalDaysReimbursed = claim.deliveries.reduce(
+            (sum, d) => sum + (d.daysReimbursed ?? 0),
+            0,
           );
-        }
-      }
 
-      // Reverse hardware replacements if the claim was reimbursed with hardware
-      if (
-        claim.status === "reimbursed" &&
-        isReplacementHardwareType(claim.supply)
-      ) {
-        // Find the replacement serial number from the delivery
-        const hwDelivery = claim.deliveries.find(
-          (d) => d.type === "claim_reimbursement" && d.lotNumber,
-        );
-        if (hwDelivery) {
-          const lotData = hwDelivery.lotNumber as any;
-          const replacementSerial = lotData?.serialNumber;
-
-          if (replacementSerial) {
-            // Determine the type of hardware that was created
-            let createdType = claim.supply!;
-            if (createdType === SupplyType.CABLE_TRANSMISOR) {
-              createdType = SupplyType.TRANSMISOR;
-            }
-
-            // Find the replacement hardware
-            const replacementHw = await this.prisma.hardwareSupply.findFirst({
-              where: {
-                serialNumber: replacementSerial,
-                type: createdType,
-                userId: claim.userId,
-              },
+          const balanceDelta = (claim.daysClaimed ?? 0) - totalDaysReimbursed;
+          if (balanceDelta !== 0) {
+            const fieldName = claim.supply === SupplyType.SENSOR
+              ? "balanceDaysSensor"
+              : "balanceDaysParche";
+            await tx.user.update({
+              where: { id: claim.userId },
+              data: { [fieldName]: { increment: balanceDelta } },
             });
-
-            if (replacementHw) {
-              // Delete linked items (CABLE_TRANSMISOR linked to TRANSMISOR, etc.)
-              await this.prisma.hardwareSupply.deleteMany({
-                where: { linkedHardwareId: replacementHw.id },
-              });
-
-              // Delete the replacement hardware itself
-              await this.prisma.hardwareSupply.delete({
-                where: { id: replacementHw.id },
-              });
-            }
           }
-
-          // Re-activate the most recently retired hardware of the same type(s)
-          let typesToReactivate: SupplyType[];
-          if (
-            claim.supply === SupplyType.TRANSMISOR ||
-            claim.supply === SupplyType.CABLE_TRANSMISOR
-          ) {
-            typesToReactivate = [SupplyType.TRANSMISOR, SupplyType.CABLE_TRANSMISOR];
-          } else if (
-            claim.supply === SupplyType.BASE_BOMBA_200U ||
-            claim.supply === SupplyType.BASE_BOMBA_300U
-          ) {
-            typesToReactivate = [claim.supply];
-          } else {
-            typesToReactivate = [SupplyType.PDM];
-          }
-
-          // Only reactivate hardware retired around the time the claim was resolved
-          const reactivateWhere: Prisma.HardwareSupplyWhereInput = {
-            userId: claim.userId,
-            type: { in: typesToReactivate },
-            status: HardwareStatus.retired,
-          };
-          if (claim.resolvedAt) {
-            const retiredAfter = new Date(claim.resolvedAt.getTime() - 60_000);
-            const retiredBefore = new Date(claim.resolvedAt.getTime() + 60_000);
-            reactivateWhere.updatedAt = { gte: retiredAfter, lte: retiredBefore };
-          }
-
-          await this.prisma.hardwareSupply.updateMany({
-            where: reactivateWhere,
-            data: { status: HardwareStatus.active },
-          });
         }
+
+        // Reverse hardware replacements if the claim was reimbursed with hardware
+        if (
+          claim.status === "reimbursed" &&
+          isReplacementHardwareType(claim.supply)
+        ) {
+          // Find the replacement serial number from the delivery
+          const hwDelivery = claim.deliveries.find(
+            (d) => d.type === "claim_reimbursement" && d.lotNumber,
+          );
+          if (hwDelivery) {
+            const lotData = hwDelivery.lotNumber as any;
+            const replacementSerial = lotData?.serialNumber;
+
+            if (replacementSerial) {
+              // Determine the type of hardware that was created
+              let createdType = claim.supply!;
+              if (createdType === SupplyType.CABLE_TRANSMISOR) {
+                createdType = SupplyType.TRANSMISOR;
+              }
+
+              // Find the replacement hardware
+              const replacementHw = await tx.hardwareSupply.findFirst({
+                where: {
+                  serialNumber: replacementSerial,
+                  type: createdType,
+                  userId: claim.userId,
+                },
+              });
+
+              if (replacementHw) {
+                // Delete linked items (CABLE_TRANSMISOR linked to TRANSMISOR, etc.)
+                await tx.hardwareSupply.deleteMany({
+                  where: { linkedHardwareId: replacementHw.id },
+                });
+
+                // Delete the replacement hardware itself
+                await tx.hardwareSupply.delete({
+                  where: { id: replacementHw.id },
+                });
+              }
+            }
+
+            // Re-activate the most recently retired hardware of the same type(s)
+            let typesToReactivate: SupplyType[];
+            if (
+              claim.supply === SupplyType.TRANSMISOR ||
+              claim.supply === SupplyType.CABLE_TRANSMISOR
+            ) {
+              typesToReactivate = [SupplyType.TRANSMISOR, SupplyType.CABLE_TRANSMISOR];
+            } else if (
+              claim.supply === SupplyType.BASE_BOMBA_200U ||
+              claim.supply === SupplyType.BASE_BOMBA_300U
+            ) {
+              typesToReactivate = [claim.supply];
+            } else {
+              typesToReactivate = [SupplyType.PDM];
+            }
+
+            // Only reactivate hardware retired around the time the claim was resolved
+            const reactivateWhere: Prisma.HardwareSupplyWhereInput = {
+              userId: claim.userId,
+              type: { in: typesToReactivate },
+              status: HardwareStatus.retired,
+            };
+            if (claim.resolvedAt) {
+              const retiredAfter = new Date(claim.resolvedAt.getTime() - 60_000);
+              const retiredBefore = new Date(claim.resolvedAt.getTime() + 60_000);
+              reactivateWhere.updatedAt = { gte: retiredAfter, lte: retiredBefore };
+            }
+
+            await tx.hardwareSupply.updateMany({
+              where: reactivateWhere,
+              data: { status: HardwareStatus.active },
+            });
+          }
+        }
+
+        await tx.delivery.deleteMany({
+          where: { claimId: claim.id },
+        });
+
+        updateData.balanceAfterResolution = null;
       }
 
-      await this.prisma.delivery.deleteMany({
-        where: { claimId: claim.id },
+      await tx.claim.update({
+        where: { id },
+        data: updateData,
       });
 
-      updateData.balanceAfterResolution = null;
-    }
+      // Auto-log system observation for status change
+      const statusLabels: Record<string, string> = {
+        approved: "Reclamo aprobado",
+        rejected: "Reclamo rechazado",
+        annulled: "Reclamo anulado",
+      };
+      const label = statusLabels[status] || `Estado cambiado a ${status}`;
+      const obsText = resolutionMessage
+        ? `${label}: ${resolutionMessage}`
+        : label;
+      const authorRecord = user
+        ? await tx.user.findUnique({
+            where: { id: user.userId },
+            select: { fullName: true, email: true },
+          })
+        : null;
+      const authorName = authorRecord?.fullName || authorRecord?.email || "Sistema";
 
-    await this.prisma.claim.update({
-      where: { id },
-      data: updateData,
-    });
-
-    // Auto-log system observation for status change
-    const statusLabels: Record<string, string> = {
-      approved: "Reclamo aprobado",
-      rejected: "Reclamo rechazado",
-      annulled: "Reclamo anulado",
-    };
-    const label = statusLabels[status] || `Estado cambiado a ${status}`;
-    const obsText = resolutionMessage
-      ? `${label}: ${resolutionMessage}`
-      : label;
-    const authorRecord = user
-      ? await this.prisma.user.findUnique({
-          where: { id: user.userId },
-          select: { fullName: true, email: true },
-        })
-      : null;
-    const authorName = authorRecord?.fullName || authorRecord?.email || "Sistema";
-
-    await appendClaimObservation(
-      this.prisma,
-      id,
-      buildObservation(obsText, user?.userId || "", authorName, "system", {
-        action: status,
-      }),
-    );
+      await appendClaimObservation(
+        tx as any,
+        id,
+        buildObservation(obsText, user?.userId || "", authorName, "system", {
+          action: status,
+        }),
+      );
+    }, { timeout: 30000 });
 
     return this.prisma.claim.findUnique({
       where: { id },
@@ -545,236 +551,284 @@ export class ClaimsAdminService {
       }
     }
 
-    const updateData: Prisma.ClaimUpdateInput = {
-      status: "reimbursed",
-      reimbursedAt: new Date(),
-      ...(user && { reimbursedBy: { connect: { id: user.userId } } }),
-    };
+    await this.prisma.$transaction(async (tx) => {
+      const updateData: Prisma.ClaimUpdateInput = {
+        status: "reimbursed",
+        reimbursedAt: new Date(),
+        ...(user && { reimbursedBy: { connect: { id: user.userId } } }),
+      };
 
-    if (resolutionMessage !== undefined) {
-      updateData.resolutionMessage = resolutionMessage;
-    }
+      if (resolutionMessage !== undefined) {
+        updateData.resolutionMessage = resolutionMessage;
+      }
 
-    if (returnedLots?.length) {
-      updateData.returnedLots = returnedLots;
-    }
+      if (returnedLots?.length) {
+        updateData.returnedLots = returnedLots;
+      }
 
-    if (extra?.reimbursementPhotoUrl) {
-      updateData.reimbursementPhotoUrl = extra.reimbursementPhotoUrl;
-    }
-    if (extra?.trackingLink) {
-      updateData.trackingLink = extra.trackingLink;
-    }
-    if (extra?.shippingDate) {
-      updateData.shippingDate = new Date(extra.shippingDate);
-    }
+      if (extra?.reimbursementPhotoUrl) {
+        updateData.reimbursementPhotoUrl = extra.reimbursementPhotoUrl;
+      }
+      if (extra?.trackingLink) {
+        updateData.trackingLink = extra.trackingLink;
+      }
+      if (extra?.shippingDate) {
+        updateData.shippingDate = new Date(extra.shippingDate);
+      }
 
-    // Fetch user name for delivery observations
-    const deliveryAuthorRecord = user
-      ? await this.prisma.user.findUnique({
-          where: { id: user.userId },
-          select: { fullName: true, email: true },
-        })
-      : null;
-    const deliveryAuthorName = deliveryAuthorRecord?.fullName || deliveryAuthorRecord?.email || "Sistema";
+      // Fetch user name for delivery observations
+      const deliveryAuthorRecord = user
+        ? await tx.user.findUnique({
+            where: { id: user.userId },
+            select: { fullName: true, email: true },
+          })
+        : null;
+      const deliveryAuthorName = deliveryAuthorRecord?.fullName || deliveryAuthorRecord?.email || "Sistema";
 
-    if (
-      claim.supply === SupplyType.SENSOR ||
-      claim.supply === SupplyType.PARCHE_200U ||
-      claim.supply === SupplyType.PARCHE_300U
-    ) {
-      if (user) {
-        if (returnedLots?.length) {
-          const deliveryObs = resolutionMessage
-            ? [buildObservation(resolutionMessage, user.userId, deliveryAuthorName, "system", { action: "reimbursed" })]
-            : [];
-          await this.prisma.delivery.create({
+      if (
+        claim.supply === SupplyType.SENSOR ||
+        claim.supply === SupplyType.PARCHE_200U ||
+        claim.supply === SupplyType.PARCHE_300U
+      ) {
+        if (user) {
+          if (returnedLots?.length) {
+            const deliveryObs = resolutionMessage
+              ? [buildObservation(resolutionMessage, user.userId, deliveryAuthorName, "system", { action: "reimbursed" })]
+              : [];
+            await tx.delivery.create({
+              data: {
+                type: "claim_reimbursement",
+                userId: claim.userId,
+                organizationId: claim.user?.organizationId ?? null,
+                claimId: claim.id,
+                quantity: qty,
+                daysReimbursed: daysReimbursed ?? undefined,
+                itemName: claim.supply ?? undefined,
+                lotNumber: returnedLots as any,
+                date: new Date(),
+                assignedById: user.userId,
+                observations: deliveryObs as any,
+                internalPhotoUrls: extra?.reimbursementPhotoUrls ?? [],
+                externalPhotoUrls: extra?.deliveryPhotoUrls ?? [],
+                contactName: extra?.contactName,
+                contactPhone: extra?.contactPhone,
+                contactEmail: extra?.contactEmail,
+              },
+            });
+
+            if (daysReimbursed && claim.supply) {
+              const fieldName = claim.supply === SupplyType.SENSOR
+                ? "balanceDaysSensor"
+                : "balanceDaysParche";
+              await tx.user.update({
+                where: { id: claim.userId },
+                data: { [fieldName]: { increment: daysReimbursed } },
+              });
+            }
+          } else {
+            // Build delivery observations
+            const obsArray = resolutionMessage
+              ? [buildObservation(resolutionMessage, user.userId, "Sistema", "system")]
+              : [];
+
+            await tx.delivery.create({
+              data: {
+                type: "claim_reimbursement",
+                userId: claim.userId,
+                organizationId: claim.user?.organizationId ?? null,
+                claimId: claim.id,
+                quantity: qty,
+                daysReimbursed,
+                itemName: claim.supply ?? undefined,
+                date: new Date(),
+                assignedById: user.userId,
+                observations: obsArray as any,
+                internalPhotoUrls: extra?.reimbursementPhotoUrls ?? [],
+                externalPhotoUrls: extra?.deliveryPhotoUrls ?? [],
+                contactName: extra?.contactName,
+                contactPhone: extra?.contactPhone,
+                contactEmail: extra?.contactEmail,
+              },
+            });
+
+            if (daysReimbursed && claim.supply) {
+              if (
+                claim.supply === SupplyType.SENSOR ||
+                claim.supply === SupplyType.PARCHE_200U ||
+                claim.supply === SupplyType.PARCHE_300U
+              ) {
+                const fieldName = claim.supply === SupplyType.SENSOR
+                  ? "balanceDaysSensor"
+                  : "balanceDaysParche";
+                await tx.user.update({
+                  where: { id: claim.userId },
+                  data: { [fieldName]: { increment: daysReimbursed } },
+                });
+              }
+            }
+          }
+
+          const updatedPatient = await tx.user.findUnique({
+            where: { id: claim.userId },
+          });
+          if (updatedPatient) {
+            updateData.balanceAfterResolution = claim.supply === SupplyType.SENSOR
+              ? updatedPatient.balanceDaysSensor ?? 0
+              : updatedPatient.balanceDaysParche ?? 0;
+          }
+        }
+      }
+
+      // Hardware replacement logic (TRANSMISOR, CABLE_TRANSMISOR, BASE_BOMBA, PDM)
+      if (
+        isReplacementHardwareType(claim.supply) &&
+        extra?.replacementSerialNumber &&
+        user
+      ) {
+        const supply = claim.supply!;
+
+        // Determine which types to retire based on the claimed supply
+        let typesToRetire: SupplyType[];
+        if (supply === SupplyType.TRANSMISOR || supply === SupplyType.CABLE_TRANSMISOR) {
+          typesToRetire = [SupplyType.TRANSMISOR, SupplyType.CABLE_TRANSMISOR];
+        } else if (supply === SupplyType.BASE_BOMBA_200U || supply === SupplyType.BASE_BOMBA_300U) {
+          typesToRetire = [supply];
+        } else {
+          // PDM
+          typesToRetire = [SupplyType.PDM];
+        }
+
+        // Retire old hardware
+        await tx.hardwareSupply.updateMany({
+          where: {
+            userId: claim.userId,
+            type: { in: typesToRetire },
+            status: HardwareStatus.active,
+          },
+          data: { status: HardwareStatus.retired },
+        });
+
+        // Create new replacement hardware
+        if (supply === SupplyType.TRANSMISOR || supply === SupplyType.CABLE_TRANSMISOR) {
+          // Create TRANSMISOR directly inside the transaction
+          const newTransmisor = await tx.hardwareSupply.create({
             data: {
-              type: "claim_reimbursement",
+              type: SupplyType.TRANSMISOR,
+              serialNumber: extra.replacementSerialNumber,
+              lotNumber: extra.replacementLotNumber,
               userId: claim.userId,
-              organizationId: claim.user?.organizationId ?? null,
-              claimId: claim.id,
-              quantity: qty,
-              daysReimbursed: daysReimbursed ?? undefined,
-              itemName: claim.supply ?? undefined,
-              lotNumber: returnedLots as any,
-              date: new Date(),
-              assignedById: user.userId,
-              observations: deliveryObs as any,
-              internalPhotoUrls: extra?.reimbursementPhotoUrls ?? [],
-              externalPhotoUrls: extra?.deliveryPhotoUrls ?? [],
-              contactName: extra?.contactName,
-              contactPhone: extra?.contactPhone,
-              contactEmail: extra?.contactEmail,
+              organizationId: claim.user.organizationId ?? undefined,
+              assignedDate: new Date(),
+              saleDate: extra.replacementPurchaseDate
+                ? parseDate(extra.replacementPurchaseDate)
+                : undefined,
             },
           });
 
-          if (daysReimbursed && claim.supply) {
-            await this.users.updateBalanceDays(
-              claim.userId,
-              daysReimbursed,
-              claim.supply
-            );
-          }
-        } else {
-          await this.deliveries.create(
-            {
-              userId: claim.userId,
-              claimId: claim.id,
-              quantity: qty,
-              daysReimbursed,
-              itemName: claim.supply ?? undefined,
-              observations: resolutionMessage,
-              internalPhotoUrls: extra?.reimbursementPhotoUrls ?? [],
-              externalPhotoUrls: extra?.deliveryPhotoUrls ?? [],
-              contactName: extra?.contactName,
-              contactPhone: extra?.contactPhone,
-              contactEmail: extra?.contactEmail,
+          // Auto-create companion CABLE_TRANSMISOR linked to the TRANSMISOR
+          const cableExists = await tx.hardwareSupply.findFirst({
+            where: {
+              serialNumber: extra.replacementSerialNumber,
+              type: SupplyType.CABLE_TRANSMISOR,
             },
-            user.userId,
-            user
-          );
+          });
+
+          if (!cableExists) {
+            await tx.hardwareSupply.create({
+              data: {
+                type: SupplyType.CABLE_TRANSMISOR,
+                serialNumber: extra.replacementSerialNumber,
+                lotNumber: extra.replacementLotNumber,
+                userId: claim.userId,
+                organizationId: claim.user.organizationId ?? undefined,
+                assignedDate: new Date(),
+                saleDate: extra.replacementPurchaseDate
+                  ? parseDate(extra.replacementPurchaseDate)
+                  : undefined,
+                linkedHardwareId: newTransmisor.id,
+              },
+            });
+          }
+        } else if (supply === SupplyType.BASE_BOMBA_200U || supply === SupplyType.BASE_BOMBA_300U) {
+          // Base bomba only — create directly to avoid auto-creating/replacing PDM
+          await tx.hardwareSupply.create({
+            data: {
+              type: supply,
+              serialNumber: extra.replacementSerialNumber,
+              lotNumber: extra.replacementLotNumber,
+              userId: claim.userId,
+              organizationId: claim.user.organizationId ?? undefined,
+              assignedDate: new Date(),
+              saleDate: extra.replacementPurchaseDate
+                ? parseDate(extra.replacementPurchaseDate)
+                : undefined,
+            },
+          });
+        } else if (supply === SupplyType.PDM) {
+          // PDM: create directly (not a primary type in hardwareService.create)
+          await tx.hardwareSupply.create({
+            data: {
+              type: SupplyType.PDM,
+              serialNumber: extra.replacementSerialNumber,
+              lotNumber: extra.replacementLotNumber,
+              userId: claim.userId,
+              organizationId: claim.user.organizationId ?? undefined,
+              assignedDate: new Date(),
+              saleDate: extra.replacementPurchaseDate
+                ? parseDate(extra.replacementPurchaseDate)
+                : undefined,
+            },
+          });
         }
 
-        const updatedPatient = await this.prisma.user.findUnique({
-          where: { id: claim.userId },
+        // Create delivery record for hardware reimbursement
+        const deliveryObs = resolutionMessage
+          ? [buildObservation(resolutionMessage, user.userId, deliveryAuthorName, "system", { action: "reimbursed" })]
+          : [];
+        await tx.delivery.create({
+          data: {
+            type: "claim_reimbursement",
+            userId: claim.userId,
+            organizationId: claim.user?.organizationId ?? null,
+            claimId: claim.id,
+            quantity: 1,
+            itemName: claim.supply ?? undefined,
+            lotNumber: {
+              lotNumber: extra.replacementLotNumber,
+              serialNumber: extra.replacementSerialNumber,
+            } as any,
+            date: new Date(),
+            assignedById: user.userId,
+            observations: deliveryObs as any,
+            internalPhotoUrls: extra?.reimbursementPhotoUrls ?? [],
+            externalPhotoUrls: extra?.deliveryPhotoUrls ?? [],
+            contactName: extra?.contactName,
+            contactPhone: extra?.contactPhone,
+            contactEmail: extra?.contactEmail,
+          },
         });
-        if (updatedPatient) {
-          updateData.balanceAfterResolution = claim.supply === SupplyType.SENSOR
-            ? updatedPatient.balanceDaysSensor ?? 0
-            : updatedPatient.balanceDaysParche ?? 0;
-        }
-      }
-    }
-
-    // Hardware replacement logic (TRANSMISOR, CABLE_TRANSMISOR, BASE_BOMBA, PDM)
-    if (
-      isReplacementHardwareType(claim.supply) &&
-      extra?.replacementSerialNumber &&
-      user
-    ) {
-      const supply = claim.supply!;
-
-      // Determine which types to retire based on the claimed supply
-      let typesToRetire: SupplyType[];
-      if (supply === SupplyType.TRANSMISOR || supply === SupplyType.CABLE_TRANSMISOR) {
-        typesToRetire = [SupplyType.TRANSMISOR, SupplyType.CABLE_TRANSMISOR];
-      } else if (supply === SupplyType.BASE_BOMBA_200U || supply === SupplyType.BASE_BOMBA_300U) {
-        typesToRetire = [supply];
-      } else {
-        // PDM
-        typesToRetire = [SupplyType.PDM];
       }
 
-      // Retire old hardware
-      await this.prisma.hardwareSupply.updateMany({
-        where: {
-          userId: claim.userId,
-          type: { in: typesToRetire },
-          status: HardwareStatus.active,
-        },
-        data: { status: HardwareStatus.retired },
+      await tx.claim.update({
+        where: { id },
+        data: updateData,
       });
 
-      // Create new replacement hardware
-      if (supply === SupplyType.TRANSMISOR || supply === SupplyType.CABLE_TRANSMISOR) {
-        // Kit: create TRANSMISOR (auto-creates CABLE_TRANSMISOR via hardwareService.create)
-        await this.hardwareService.create(
-          {
-            type: SupplyType.TRANSMISOR,
-            serialNumber: extra.replacementSerialNumber,
-            lotNumber: extra.replacementLotNumber,
-            userId: claim.userId,
-            saleDate: extra.replacementPurchaseDate,
-          },
-          user.userId,
-          claim.user.organizationId ?? undefined,
-        );
-      } else if (supply === SupplyType.BASE_BOMBA_200U || supply === SupplyType.BASE_BOMBA_300U) {
-        // Base bomba only — create directly to avoid auto-creating/replacing PDM
-        await this.prisma.hardwareSupply.create({
-          data: {
-            type: supply,
-            serialNumber: extra.replacementSerialNumber,
-            lotNumber: extra.replacementLotNumber,
-            userId: claim.userId,
-            organizationId: claim.user.organizationId ?? undefined,
-            assignedDate: new Date(),
-            saleDate: extra.replacementPurchaseDate
-              ? parseDate(extra.replacementPurchaseDate)
-              : undefined,
-          },
-        });
-      } else if (supply === SupplyType.PDM) {
-        // PDM: create directly (not a primary type in hardwareService.create)
-        await this.prisma.hardwareSupply.create({
-          data: {
-            type: SupplyType.PDM,
-            serialNumber: extra.replacementSerialNumber,
-            lotNumber: extra.replacementLotNumber,
-            userId: claim.userId,
-            organizationId: claim.user.organizationId ?? undefined,
-            assignedDate: new Date(),
-            saleDate: extra.replacementPurchaseDate
-              ? parseDate(extra.replacementPurchaseDate)
-              : undefined,
-          },
-        });
-      }
+      // Auto-log system observation for reimbursement
+      const reimburseAuthorName = deliveryAuthorRecord?.fullName || deliveryAuthorRecord?.email || "Sistema";
+      const reimburseText = resolutionMessage
+        ? `Reclamo reintegrado (cantidad: ${qty}): ${resolutionMessage}`
+        : `Reclamo reintegrado (cantidad: ${qty})`;
+      await appendClaimObservation(
+        tx as any,
+        id,
+        buildObservation(reimburseText, user?.userId || "", reimburseAuthorName, "system", {
+          action: "reimbursed",
+        }),
+      );
+    }, { timeout: 30000 });
 
-      // Create delivery record for hardware reimbursement
-      const deliveryObs = resolutionMessage
-        ? [buildObservation(resolutionMessage, user.userId, deliveryAuthorName, "system", { action: "reimbursed" })]
-        : [];
-      await this.prisma.delivery.create({
-        data: {
-          type: "claim_reimbursement",
-          userId: claim.userId,
-          organizationId: claim.user?.organizationId ?? null,
-          claimId: claim.id,
-          quantity: 1,
-          itemName: claim.supply ?? undefined,
-          lotNumber: {
-            lotNumber: extra.replacementLotNumber,
-            serialNumber: extra.replacementSerialNumber,
-          } as any,
-          date: new Date(),
-          assignedById: user.userId,
-          observations: deliveryObs as any,
-          internalPhotoUrls: extra?.reimbursementPhotoUrls ?? [],
-          externalPhotoUrls: extra?.deliveryPhotoUrls ?? [],
-          contactName: extra?.contactName,
-          contactPhone: extra?.contactPhone,
-          contactEmail: extra?.contactEmail,
-        },
-      });
-    }
-
-    await this.prisma.claim.update({
-      where: { id },
-      data: updateData,
-    });
-
-    // Auto-log system observation for reimbursement
-    const reimburseAuthorRecord = user
-      ? await this.prisma.user.findUnique({
-          where: { id: user.userId },
-          select: { fullName: true, email: true },
-        })
-      : null;
-    const reimburseAuthorName = reimburseAuthorRecord?.fullName || reimburseAuthorRecord?.email || "Sistema";
-    const reimburseText = resolutionMessage
-      ? `Reclamo reintegrado (cantidad: ${qty}): ${resolutionMessage}`
-      : `Reclamo reintegrado (cantidad: ${qty})`;
-    await appendClaimObservation(
-      this.prisma,
-      id,
-      buildObservation(reimburseText, user?.userId || "", reimburseAuthorName, "system", {
-        action: "reimbursed",
-      }),
-    );
-
-    // Send reimbursement email to patient
+    // Send reimbursement email to patient (outside transaction — not a DB operation)
     if (claim.user?.email) {
       const supplyLabel = claim.supply
         ? (SUPPLY_LABELS[claim.supply] ?? claim.supply)

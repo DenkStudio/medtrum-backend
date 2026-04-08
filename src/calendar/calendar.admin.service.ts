@@ -35,7 +35,12 @@ export class CalendarAdminService {
     const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
     const endOfMonth = new Date(Date.UTC(year, month, 1));
 
-    const orgFilter = buildOrgFilter(user);
+    let orgFilter = buildOrgFilter(user);
+
+    // Allow super_educator to filter by specific org via query param
+    if (query.organizationId && (user.role === "super_educator")) {
+      orgFilter = { organizationId: query.organizationId };
+    }
 
     // Build educator filter for educator/super_educator roles
     const educatorPatientFilter =
