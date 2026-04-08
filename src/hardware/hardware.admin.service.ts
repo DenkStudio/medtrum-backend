@@ -550,25 +550,40 @@ export class HardwareAdminService {
     const { page = 1, limit = 20, search, from, to } = query;
     const skip = (page - 1) * limit;
 
+    // Filter by org: check both hardware's org and the patient's org
+    const orgFilter = buildOrgFilter(user);
+
     const where: Prisma.HardwareSupplyWhereInput = {
-      ...buildOrgFilter(user),
       // Exclude linked items (they show nested under their parent)
       linkedHardwareId: null,
-      OR: [
-        { serialNumber: null },
-        { lotNumber: null },
-        { saleDate: null },
-        // Also show parent if any linked child is incomplete
-        {
-          linkedFrom: {
-            some: {
+      AND: [
+        // Org filter: match hardware org OR patient org
+        orgFilter.organizationId
+          ? {
               OR: [
-                { serialNumber: null },
-                { lotNumber: null },
-                { saleDate: null },
+                { organizationId: orgFilter.organizationId },
+                { user: { organizationId: orgFilter.organizationId } },
               ],
+            }
+          : {},
+        // Incomplete filter: at least one field missing
+        {
+          OR: [
+            { serialNumber: null },
+            { lotNumber: null },
+            { saleDate: null },
+            {
+              linkedFrom: {
+                some: {
+                  OR: [
+                    { serialNumber: null },
+                    { lotNumber: null },
+                    { saleDate: null },
+                  ],
+                },
+              },
             },
-          },
+          ],
         },
       ],
     };
