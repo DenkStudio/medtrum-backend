@@ -723,14 +723,23 @@ export class HardwareAdminService {
 
     // Update linked items (e.g. PDM, cable) — shared lot number and sale date
     if ((hardware as any).linkedFrom?.length > 0) {
+      const isTransmisorCableKit =
+        (hardware.type === SupplyType.TRANSMISOR || hardware.type === SupplyType.CABLE_TRANSMISOR);
+
       for (const linked of (hardware as any).linkedFrom) {
+        // For Transmisor+Cable kits, share the same serial number
+        const linkedSerial = dto.linkedSerialNumber !== undefined
+          ? dto.linkedSerialNumber
+          : (isTransmisorCableKit && dto.serialNumber !== undefined)
+            ? dto.serialNumber
+            : undefined;
+
         await this.prisma.hardwareSupply.update({
           where: { id: linked.id },
           data: {
             ...(dto.lotNumber !== undefined && { lotNumber: dto.lotNumber }),
             ...(dto.saleDate !== undefined && { saleDate: parseDate(dto.saleDate) }),
-            // Set linked item serial from the dedicated field
-            ...(dto.linkedSerialNumber !== undefined && { serialNumber: dto.linkedSerialNumber }),
+            ...(linkedSerial !== undefined && { serialNumber: linkedSerial }),
           },
         });
       }
