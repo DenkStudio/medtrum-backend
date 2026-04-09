@@ -14,7 +14,7 @@ class ReturnedLotDto {
 }
 
 export class ReimburseClaimDto {
-  @IsInt() @Min(1) qty!: number;
+  @IsInt() @Min(0) qty!: number;
   @IsOptional() @IsInt() @Min(0) daysReimbursed?: number;
   @IsOptional() @IsString() resolutionMessage?: string;
 
