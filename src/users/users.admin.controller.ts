@@ -76,7 +76,7 @@ export class UsersAdminController {
   }
 
   @Get(":id")
-  @Roles("superadmin", "admin")
+  @Roles("superadmin", "admin", "educator", "super_educator")
   findById(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.usersAdminService.findById(id, user);
   }
