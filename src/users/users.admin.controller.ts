@@ -61,8 +61,13 @@ export class UsersAdminController {
 
   @Get("patients-overview")
   @Roles("superadmin", "admin", "educator", "super_educator")
-  patientsOverview(@CurrentUser() user: AuthUser) {
-    return this.usersAdminService.patientsOverview(user);
+  patientsOverview(
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+    @Query("organizationId") organizationId?: string,
+    @CurrentUser() user?: AuthUser,
+  ) {
+    return this.usersAdminService.patientsOverview(user!, startDate, endDate, organizationId);
   }
 
   @Get("export")

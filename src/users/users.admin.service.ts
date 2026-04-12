@@ -208,34 +208,71 @@ export class UsersAdminService {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async patientsOverview(user: AuthUser) {
+  async patientsOverview(
+    user: AuthUser,
+    startDate?: string,
+    endDate?: string,
+    organizationId?: string,
+  ) {
     const orgFilter = buildOrgFilter(user);
-    const where: Prisma.UserWhereInput = { ...orgFilter, role: "patient" };
+    const effectiveOrgId = orgFilter.organizationId || organizationId;
+    const where: Prisma.UserWhereInput = {
+      ...(effectiveOrgId ? { organizationId: effectiveOrgId } : {}),
+      role: "patient",
+    };
 
-    const totalPatients = await this.prisma.user.count({ where });
+    // Determine date range for trendline
+    let rangeStart: Date;
+    let rangeEnd: Date;
+
+    if (startDate && endDate) {
+      rangeStart = new Date(startDate);
+      rangeStart.setUTCHours(0, 0, 0, 0);
+      rangeEnd = new Date(endDate);
+      rangeEnd.setUTCHours(23, 59, 59, 999);
+    } else {
+      rangeEnd = new Date();
+      rangeStart = new Date(rangeEnd.getFullYear() - 1, rangeEnd.getMonth(), 1);
+    }
+
+    // Total patients (within date range)
+    const totalPatients = await this.prisma.user.count({
+      where: {
+        ...where,
+        createdAt: { gte: rangeStart, lte: rangeEnd },
+      },
+    });
 
     const recentPatients = await this.prisma.user.findMany({
-      where,
+      where: {
+        ...where,
+        createdAt: { gte: rangeStart, lte: rangeEnd },
+      },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { id: true, fullName: true, createdAt: true },
     });
 
-    // Trendline: patients created per month (last 12 months)
-    const now = new Date();
-    const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+    // Trendline: patients created per month within range
     const patientsInRange = await this.prisma.user.findMany({
-      where: { ...where, createdAt: { gte: twelveMonthsAgo } },
+      where: {
+        ...where,
+        createdAt: { gte: rangeStart, lte: rangeEnd },
+      },
       select: { createdAt: true },
       orderBy: { createdAt: "asc" },
     });
 
+    // Build monthly buckets for the entire range
     const monthlyMap = new Map<string, number>();
-    for (let i = 0; i < 12; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+    const endMonth = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), 1);
+    while (cursor <= endMonth) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
       monthlyMap.set(key, 0);
+      cursor.setMonth(cursor.getMonth() + 1);
     }
+
     for (const p of patientsInRange) {
       const d = new Date(p.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;

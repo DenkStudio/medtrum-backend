@@ -355,15 +355,16 @@ export class HardwareAdminService {
     return supply;
   }
 
-  async getErrorsByProduct(user: AuthUser) {
+  async getErrorsByProduct(user: AuthUser, organizationId?: string) {
     const orgFilter = buildOrgFilter(user);
+    const effectiveOrgId = orgFilter.organizationId || organizationId;
 
     const where: Prisma.ClaimWhereInput = {
       errorCode: { not: null },
     };
 
-    if (orgFilter.organizationId) {
-      where.user = { organizationId: orgFilter.organizationId };
+    if (effectiveOrgId) {
+      where.user = { organizationId: effectiveOrgId };
     }
 
     const claims = await this.prisma.claim.groupBy({
@@ -499,9 +500,12 @@ export class HardwareAdminService {
       });
   }
 
-  async getChartByType(user: AuthUser) {
+  async getChartByType(user: AuthUser, organizationId?: string) {
     const orgFilter = buildOrgFilter(user);
-    const where: Prisma.HardwareSupplyWhereInput = { ...orgFilter };
+    const effectiveOrgId = orgFilter.organizationId || organizationId;
+    const where: Prisma.HardwareSupplyWhereInput = {
+      ...(effectiveOrgId ? { organizationId: effectiveOrgId } : {}),
+    };
 
     const hardware = await this.prisma.hardwareSupply.groupBy({
       by: ["type"],

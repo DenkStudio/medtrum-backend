@@ -1,4 +1,4 @@
-import { IsDateString } from "class-validator";
+import { IsDateString, IsOptional, IsUUID } from "class-validator";
 
 export class ClaimsChartQueryDto {
   @IsDateString()
@@ -6,4 +6,8 @@ export class ClaimsChartQueryDto {
 
   @IsDateString()
   endDate!: string;
+
+  @IsOptional()
+  @IsUUID()
+  organizationId?: string;
 }

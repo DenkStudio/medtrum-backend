@@ -910,15 +910,17 @@ export class ClaimsAdminService {
   }
 
   async getChartData(query: ClaimsChartQueryDto, user: AuthUser) {
-    const { startDate, endDate } = query;
+    const { startDate, endDate, organizationId } = query;
     const orgFilter = buildOrgFilter(user);
 
     const where: Prisma.ClaimWhereInput = {
       createdAt: this.buildDateRange(startDate, endDate),
     };
 
-    if (orgFilter.organizationId) {
-      where.user = { organizationId: orgFilter.organizationId };
+    // Superadmin can filter by specific org via query param
+    const effectiveOrgId = orgFilter.organizationId || organizationId;
+    if (effectiveOrgId) {
+      where.user = { organizationId: effectiveOrgId };
     }
 
     const claims = await this.prisma.claim.findMany({
@@ -974,12 +976,13 @@ export class ClaimsAdminService {
   }
 
   async getClaimsByUserChart(query: ClaimsChartQueryDto, user: AuthUser) {
-    const { startDate, endDate } = query;
+    const { startDate, endDate, organizationId } = query;
     const orgFilter = buildOrgFilter(user);
 
     const userWhere: Prisma.UserWhereInput = { role: "patient" };
-    if (orgFilter.organizationId) {
-      userWhere.organizationId = orgFilter.organizationId;
+    const effectiveOrgId = orgFilter.organizationId || organizationId;
+    if (effectiveOrgId) {
+      userWhere.organizationId = effectiveOrgId;
     }
 
     const patients = await this.prisma.user.findMany({
