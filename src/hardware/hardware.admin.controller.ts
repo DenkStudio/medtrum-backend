@@ -39,18 +39,22 @@ export class HardwareAdminController {
   @Roles("admin", "superadmin")
   getChartByType(
     @Query("organizationId") organizationId: string,
+    @Query("startDate") startDate: string,
+    @Query("endDate") endDate: string,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.service.getChartByType(user, organizationId);
+    return this.service.getChartByType(user, organizationId, startDate, endDate);
   }
 
   @Get("chart/errors")
   @Roles("admin", "superadmin")
   getErrorsByProduct(
     @Query("organizationId") organizationId: string,
+    @Query("startDate") startDate: string,
+    @Query("endDate") endDate: string,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.service.getErrorsByProduct(user, organizationId);
+    return this.service.getErrorsByProduct(user, organizationId, startDate, endDate);
   }
 
   @Get("user/:userId")

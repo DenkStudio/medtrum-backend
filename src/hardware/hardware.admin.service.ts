@@ -355,7 +355,7 @@ export class HardwareAdminService {
     return supply;
   }
 
-  async getErrorsByProduct(user: AuthUser, organizationId?: string) {
+  async getErrorsByProduct(user: AuthUser, organizationId?: string, startDate?: string, endDate?: string) {
     const orgFilter = buildOrgFilter(user);
     const effectiveOrgId = orgFilter.organizationId || organizationId;
 
@@ -365,6 +365,14 @@ export class HardwareAdminService {
 
     if (effectiveOrgId) {
       where.user = { organizationId: effectiveOrgId };
+    }
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setUTCHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setUTCHours(23, 59, 59, 999);
+      where.createdAt = { gte: start, lte: end };
     }
 
     const claims = await this.prisma.claim.groupBy({
@@ -500,12 +508,20 @@ export class HardwareAdminService {
       });
   }
 
-  async getChartByType(user: AuthUser, organizationId?: string) {
+  async getChartByType(user: AuthUser, organizationId?: string, startDate?: string, endDate?: string) {
     const orgFilter = buildOrgFilter(user);
     const effectiveOrgId = orgFilter.organizationId || organizationId;
     const where: Prisma.HardwareSupplyWhereInput = {
       ...(effectiveOrgId ? { organizationId: effectiveOrgId } : {}),
     };
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setUTCHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setUTCHours(23, 59, 59, 999);
+      where.createdAt = { gte: start, lte: end };
+    }
 
     const hardware = await this.prisma.hardwareSupply.groupBy({
       by: ["type"],
