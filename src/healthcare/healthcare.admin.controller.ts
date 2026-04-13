@@ -14,7 +14,7 @@ export class HealthcareAdminController {
   constructor(private readonly healthcareService: HealthcareAdminService) {}
 
   @Post()
-  @Roles("superadmin", "admin")
+  @Roles("superadmin", "admin", "educator", "super_educator")
   create(@Body() body: CreateHealthcareDto, @CurrentUser() user: AuthUser) {
     return this.healthcareService.create(body, user);
   }
