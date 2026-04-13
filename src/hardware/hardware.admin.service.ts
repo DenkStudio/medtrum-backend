@@ -576,6 +576,8 @@ export class HardwareAdminService {
     const where: Prisma.HardwareSupplyWhereInput = {
       // Exclude linked items (they show nested under their parent)
       linkedHardwareId: null,
+      // Exclude items already reviewed by logistica
+      logisticaReviewed: false,
       AND: [
         // Org filter: match hardware org OR patient org
         orgFilter.organizationId

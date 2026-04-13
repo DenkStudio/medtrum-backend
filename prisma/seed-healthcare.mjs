@@ -425,24 +425,6 @@ const healthcares = [
     rnos: null,
   },
   {
-    tradeName: "OSDE 310",
-    legalName: "OSDE Plan 310",
-    sigla: "OSDE",
-    rnos: null,
-  },
-  {
-    tradeName: "Sancor 2000",
-    legalName: "Sancor Salud - Plan 2000",
-    sigla: null,
-    rnos: null,
-  },
-  {
-    tradeName: "Sancor 3000",
-    legalName: "Sancor Salud - Plan 3000",
-    sigla: null,
-    rnos: null,
-  },
-  {
     tradeName: "OSPRERA",
     legalName: "Obra Social del Personal Rural y Estibadores de la República Argentina",
     sigla: "OSPRERA",

@@ -285,6 +285,7 @@ model HardwareSupply {
   userId         String?        @map("user_id")
   organizationId String?        @map("organization_id")
   saleDate       DateTime?      @map("sale_date")
+  logisticaReviewed Boolean     @default(false) @map("logistica_reviewed")
   assignedDate   DateTime?      @map("assigned_date")
   placementDate  DateTime?      @map("placement_date")
   createdAt      DateTime       @default(now()) @map("created_at")

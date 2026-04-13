@@ -65,12 +65,6 @@ const healthcares = [
     rnos: null,
   },
   {
-    tradeName: "Medicus Plan Celeste",
-    legalName: "Medicus S.A. - Plan Celeste",
-    sigla: null,
-    rnos: null,
-  },
-  {
     tradeName: "OBSBA",
     legalName: "Obra Social de la Ciudad de Buenos Aires",
     sigla: "OBSBA",
@@ -104,18 +98,6 @@ const healthcares = [
     tradeName: "OSPLAD",
     legalName: "Obra Social para la Actividad Docente",
     sigla: "OSPLAD",
-    rnos: null,
-  },
-  {
-    tradeName: "Medicus Plan Ford",
-    legalName: "Medicus S.A. - Plan Ford",
-    sigla: null,
-    rnos: null,
-  },
-  {
-    tradeName: "Omint F",
-    legalName: "Omint S.A. - Plan F",
-    sigla: null,
     rnos: null,
   },
   {
@@ -179,12 +161,6 @@ const healthcares = [
     rnos: null,
   },
   {
-    tradeName: "OSDE 210",
-    legalName: "OSDE Plan 210",
-    sigla: "OSDE",
-    rnos: null,
-  },
-  {
     tradeName: "OSMECOM",
     legalName: "Obra Social de los Empleados de Comercio",
     sigla: "OSMECOM",
@@ -206,12 +182,6 @@ const healthcares = [
     tradeName: "OSSACRA",
     legalName: "Obra Social del Personal de la Sanidad Argentina de Córdoba y la República Argentina",
     sigla: "OSSACRA",
-    rnos: null,
-  },
-  {
-    tradeName: "Medifé Plata",
-    legalName: "Medifé Asociación Civil - Plan Plata",
-    sigla: null,
     rnos: null,
   },
   {
