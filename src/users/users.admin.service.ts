@@ -47,7 +47,8 @@ export class UsersAdminService {
 
     const redirectTo = `${this.config.get("FRONTEND_URL")}/update-password`;
 
-    const { data, error } =
+    // Try invite first; if user already exists in Supabase, fall back to recovery link
+    let { data, error } =
       await this.supabase.adminClient.auth.admin.generateLink({
         type: "invite",
         email: user.email,
@@ -55,7 +56,17 @@ export class UsersAdminService {
       });
 
     if (error) {
-      throw new BadRequestException(error.message);
+      const recovery =
+        await this.supabase.adminClient.auth.admin.generateLink({
+          type: "recovery",
+          email: user.email,
+          options: { redirectTo },
+        });
+
+      if (recovery.error) {
+        throw new BadRequestException(recovery.error.message);
+      }
+      data = recovery.data;
     }
 
     this.mail.sendInvitationEmail({
