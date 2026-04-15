@@ -69,10 +69,15 @@ export class UsersAdminService {
       data = recovery.data;
     }
 
+    const actionLink = data?.properties?.action_link;
+    if (!actionLink) {
+      throw new BadRequestException("No se pudo generar el enlace de invitación");
+    }
+
     this.mail.sendInvitationEmail({
       email: user.email,
       name: user.fullName ?? undefined,
-      actionLink: data.properties.action_link,
+      actionLink,
     });
 
     return { message: "Invitación enviada", data };
